@@ -1,0 +1,9 @@
+{
+  "name": "palamos-linux",
+  "version": "1.0.0",
+  "dependencies": {
+  },
+    "scripts": {
+        "start": "node src/worker.js"
+    }
+}
