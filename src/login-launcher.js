@@ -51,7 +51,7 @@ const server = app.listen(PORT, () => {
 killable(server);
 
 // On run
-exec(`chrome http://localhost:${PORT}/login`, (error, stdout, stderr) => {
+exec(process.env.WARNING_MESAGE_PROGRAM + ` http://localhost:${PORT}/login`, (error, stdout, stderr) => {
     if (error) {
         console.error(`Error: ${error.message}`);
         return undefined;
