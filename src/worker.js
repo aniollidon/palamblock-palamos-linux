@@ -2,6 +2,10 @@ const os = require('os');
 const ip = require('ip');
 const axios = require('axios');
 const io = require('socket.io-client');
+const {exec} = require('child_process');
+
+require('dotenv').config();
+
 
 let currentIP = null;
 let username = 'unknown';
@@ -19,6 +23,41 @@ try {
     // No login file, create one
     require('./login-launcher')
 }
+
+async function setup_x11(){
+    // AIXÓ ES FA AMB SYSTEMBD
+    /*exec("x11vnc -forever -passwd patata123  -alwaysshared & ",  (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error: ${error.message}`);
+            return undefined;
+
+        }
+
+        if (stderr) {
+            console.error(`Error: ${stderr}`);
+            return undefined;
+        }
+    });*/
+}
+
+
+async function setup_novnc(){
+    exec("/home/super/noVNC/utils/novnc_proxy --vnc localhost:5900 & ",  (error, stdout, stderr) => {
+        if (error) {
+            console.error(`Error: ${error.message}`);
+            return undefined;
+        }
+
+        if (stderr) {
+            console.error(`Error: ${stderr}`);
+            return undefined;
+        }
+    });
+}
+
+
+setup_x11();
+setup_novnc();
 
 // Connect to server
 const socket = io.connect(process.env.SERVER_PALAMBLOCK, {
@@ -52,7 +91,7 @@ socket.on('connect_error', (error) => {
 
 async function sendIP_url (ip, username){
     await axios.post(process.env.API_PALAMBLOCK + '/register/machine', {
-        ip: ip,
+        currentIp: ip,
         alumne: username
     }).then(async (res) => {})
     .catch((err) => {
