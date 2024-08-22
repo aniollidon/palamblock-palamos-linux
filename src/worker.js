@@ -1,6 +1,7 @@
 const os = require('os');
 const ip = require('ip');
 const axios = require('axios');
+const io = require('socket.io-client');
 
 let currentIP = null;
 let username = 'unknown';
@@ -19,7 +20,37 @@ try {
     require('./login-launcher')
 }
 
-async function sendIP (ip, username){
+// Connect to server
+const socket = io.connect(process.env.SERVER_PALAMBLOCK, {
+    transports: ["websocket"],
+    path: '/ws-os'});
+
+socket.on('connect', function () {
+    console.log('Connected to server');
+    socket.emit('registerOS', {version: version, os: os.platform(), username: username});
+
+    setInterval(async () => {
+        try{
+            // Check IP
+            if(currentIP !== ip.address() && username !== 'unknown') {
+                currentIP = ip.address();
+                console.log("IP changed to " + currentIP);
+                // Send IP to server
+                socket.emit('newIP', {ip: currentIP, username: username});
+            }
+        }
+        catch (err) {
+            console.log(err);
+        }}, process.env.IP_CHECK_INTERVAL * 1000);
+
+});
+
+socket.on('connect_error', (error) => {
+    console.log('Error', error.message);
+    return false;
+});
+
+async function sendIP_url (ip, username){
     await axios.post(process.env.API_PALAMBLOCK + '/register/machine', {
         ip: ip,
         alumne: username
@@ -28,17 +59,3 @@ async function sendIP (ip, username){
         console.error("Server not found");
     });
 }
-
-setInterval(async () => {
-    try{
-        // Check IP
-        if(currentIP !== ip.address() && username !== 'unknown') {
-            currentIP = ip.address();
-            console.log("IP changed to " + currentIP);
-            // Send IP to server
-            await sendIP(currentIP, username);
-        }
-    }
-    catch (err) {
-        console.log(err);
-    }}, process.env.IP_CHECK_INTERVAL * 1000);
