@@ -36,13 +36,13 @@ async function sendIP (ip, username){
 
 async function setup_x11(){
     // AIXÓ ES FA AMB SYSTEMBD
-    /*exec("x11vnc -forever -passwd patata123  -alwaysshared & ",  (error, stdout, stderr) => {
+    /*exec("x11vnc -forever -passwd PASSWORD  -alwaysshared & ",  (error, stdout, stderr) => {
         if (error) {
             console.error(`Error: ${error.message}`);
             return undefined;
 
         }
-    
+
         if (stderr) {
             console.error(`Error: ${stderr}`);
             return undefined;
@@ -57,7 +57,7 @@ async function setup_novnc(){
             console.error(`Error: ${error.message}`);
             return undefined;
         }
-    
+
         if (stderr) {
             console.error(`Error: ${stderr}`);
             return undefined;
@@ -79,7 +79,7 @@ setInterval(async () => {
             await sendIP(currentIP, username);
         }
 
-        
+
 
     }
     catch (err) {
