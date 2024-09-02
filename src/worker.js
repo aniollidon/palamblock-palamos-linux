@@ -55,7 +55,8 @@ async function setup_novnc(){
     });
 }
 
-function checkIPChanges(){
+function checkIPChanges(socket){
+    let currentIP = null;
     setInterval(async () => {
         try{
             // Check IP
@@ -100,8 +101,6 @@ else{
 }
 
 function start(){
-    let currentIP = null;
-
     // Setup X11 and noVNC
     setup_x11();
     setup_novnc();
@@ -111,11 +110,10 @@ function start(){
         transports: ["websocket"],
         path: '/ws-os'});
 
-    socket.on('connect', function () {
+    socket.on('connect', () => {
         console.log('Connected to server');
         socket.emit('registerOS', {version: version, os: os.platform(), ip: ip.address(), username: username});
-        currentIP = ip.address();
-        checkIPChanges();
+        checkIPChanges(socket);
     });
 
     socket.on('execute', (data) => {
