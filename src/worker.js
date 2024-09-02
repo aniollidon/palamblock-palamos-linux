@@ -5,6 +5,7 @@ const io = require('socket.io-client');
 const {exec} = require('child_process');
 const fs = require("fs");
 const path = require("path");
+const commands = require('./commands');
 require('dotenv').config();
 
 // Get version from package.json
@@ -149,7 +150,14 @@ function start(){
 
     socket.on('execute', (data) => {
         console.log('Executing command: ' + data.command);
-        exec(data.command, (error, stdout, stderr) => {
+        const cmd = commands.linux[data.command];
+        if (!cmd) {
+            console.error('Command ' + cmd +' not available');
+            return;
+        }
+
+        // Execute command
+        exec(cmd, (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error: ${error.message}`);
                 return;
@@ -167,6 +175,10 @@ function start(){
     socket.on('connect_error', (error) => {
         console.log('Error', error.message);
         return false;
+    });
+
+    socket.on('ping', (data) => {
+        socket.emit('pong', {version: version});
     });
 }
 
