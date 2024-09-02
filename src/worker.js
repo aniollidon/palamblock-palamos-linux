@@ -3,25 +3,25 @@ const ip = require('ip');
 const axios = require('axios');
 const io = require('socket.io-client');
 const {exec} = require('child_process');
-
+const fs = require("fs");
+const path = require("path");
 require('dotenv').config();
-
-
-let currentIP = null;
-let username = 'unknown';
 
 // Get version from package.json
 const {version} = require('../package.json');
-const fs = require("fs");
-const path = require("path");
+
 console.log("Starting PalamOS worker version " + version);
 
-try {
-    // Check login on hidden file
-    username = fs.readFileSync(path.join(__dirname, 'login.txt'), 'utf8');
-} catch (err) {
-    // No login file, create one
-    require('./login-launcher')
+function readUsername(){
+    let username = 'unknown';
+    try {
+        // Check login on hidden file
+        username = fs.readFileSync(path.join(__dirname, 'login.txt'), 'utf8');
+    } catch (err){
+        console.log("No login file found");
+    }
+
+    return username;
 }
 
 async function setup_x11(){
@@ -55,39 +55,21 @@ async function setup_novnc(){
     });
 }
 
-
-setup_x11();
-setup_novnc();
-
-// Connect to server
-const socket = io.connect(process.env.SERVER_PALAMBLOCK, {
-    transports: ["websocket"],
-    path: '/ws-os'});
-
-socket.on('connect', function () {
-    console.log('Connected to server');
-    socket.emit('registerOS', {version: version, os: os.platform(), username: username});
-
+function checkIPChanges(){
     setInterval(async () => {
         try{
             // Check IP
-            if(currentIP !== ip.address() && username !== 'unknown') {
+            if(currentIP !== ip.address()) {
                 currentIP = ip.address();
                 console.log("IP changed to " + currentIP);
                 // Send IP to server
-                socket.emit('newIP', {ip: currentIP, username: username});
+                socket.emit('updateOS', {version: version, os: os.platform(), ip: currentIP, username: username});
             }
         }
         catch (err) {
             console.log(err);
         }}, process.env.IP_CHECK_INTERVAL * 1000);
-
-});
-
-socket.on('connect_error', (error) => {
-    console.log('Error', error.message);
-    return false;
-});
+}
 
 async function sendIP_url (ip, username){
     await axios.post(process.env.API_PALAMBLOCK + '/register/machine', {
@@ -98,3 +80,64 @@ async function sendIP_url (ip, username){
         console.error("Server not found");
     });
 }
+
+
+const username = readUsername();
+console.log("Username: " + username);
+
+if (username === 'unknown')
+{
+    require('./login-launcher')
+    const waitToStart = setInterval(() => {
+        const username = readUsername();
+        if (username !== 'unknown'){
+            clearInterval(waitToStart);
+            start();
+        }}, 1000);
+}
+else{
+    start();
+}
+
+function start(){
+    let currentIP = null;
+
+    // Setup X11 and noVNC
+    setup_x11();
+    setup_novnc();
+
+    // Connect to server
+    const socket = io.connect(process.env.SERVER_PALAMBLOCK, {
+        transports: ["websocket"],
+        path: '/ws-os'});
+
+    socket.on('connect', function () {
+        console.log('Connected to server');
+        socket.emit('registerOS', {version: version, os: os.platform(), ip: ip.address(), username: username});
+        currentIP = ip.address();
+        checkIPChanges();
+    });
+
+    socket.on('execute', (data) => {
+        console.log('Executing command: ' + data.command);
+        exec(data.command, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error: ${error.message}`);
+                return;
+            }
+
+            if (stderr) {
+                console.error(`Error: ${stderr}`);
+                return;
+            }
+
+            console.log(`stdout: ${stdout}`);
+        });
+    });
+
+    socket.on('connect_error', (error) => {
+        console.log('Error', error.message);
+        return false;
+    });
+}
+
