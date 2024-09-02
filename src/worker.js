@@ -144,7 +144,7 @@ function start(){
             os: os.platform(),
             ip: ip.address(),
             ssid:"unknown",
-            username: username});
+            alumne: username});
         checkIPChanges(socket);
     });
 
