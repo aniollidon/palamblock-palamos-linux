@@ -54,17 +54,43 @@ async function setup_novnc(){
         }
     });
 }
+function get_ssid_wifi(){
+    // command iwgetid -r
+    return new Promise((resolve, reject) => {
+        exec("iwgetid -r", (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error: ${error.message}`);
+                reject(error);
+            }
+
+            if (stderr) {
+                console.error(`Error: ${stderr}`);
+                reject(stderr);
+            }
+
+            resolve(stdout);
+        });
+    });
+}
 
 function checkIPChanges(socket){
     let currentIP = null;
     setInterval(async () => {
-        try{
+        try {
             // Check IP
-            if(currentIP !== ip.address()) {
+            if (currentIP !== ip.address()) {
                 currentIP = ip.address();
-                console.log("IP changed to " + currentIP);
-                // Send IP to server
-                socket.emit('updateOS', {version: version, os: os.platform(), ip: currentIP, username: username});
+
+                get_ssid_wifi().then(async (ssid) => {
+                    console.log("IP changed to " + currentIP);
+                    // Send IP to server
+                    socket.emit('updateOS', {
+                        version: version,
+                        os: os.platform(),
+                        ip: currentIP,
+                        ssid: ssid,
+                        username: username});
+                });
             }
         }
         catch (err) {
@@ -112,7 +138,12 @@ function start(){
 
     socket.on('connect', () => {
         console.log('Connected to server');
-        socket.emit('registerOS', {version: version, os: os.platform(), ip: ip.address(), username: username});
+        socket.emit('registerOS', {
+            version: version,
+            os: os.platform(),
+            ip: ip.address(),
+            ssid:"unknown",
+            username: username});
         checkIPChanges(socket);
     });
 
