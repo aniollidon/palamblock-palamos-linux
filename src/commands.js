@@ -4,7 +4,7 @@ const linux_sudo = {
     'apaga': 'poweroff',
     'apaga-rapid': 'halt',
     'apaga-tot': 'shutdown -h now',
-    'pausa': 'xinput disable 12; xinput disable 13',
+    'pausa': ' DISPLAY=:1 xinput disable 12; xinput disable 13',
     'repren': 'xinput enable 12; xinput enable 13'
 }
 
