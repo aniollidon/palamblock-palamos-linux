@@ -10,4 +10,4 @@ const linux = {
     'actualitza': 'cd /home/super/palamblock-palamos-linux; git pull; npm i; pm2 reload worker',
 }
 
-module.exports = linux;
+module.exports = {linux};
