@@ -4,7 +4,7 @@ const linux_sudo = {
     'apaga': 'poweroff',
     'apaga-rapid': 'halt',
     'apaga-tot': 'shutdown -h now',
-    'pausa': '/home/super/palamblock-palamos-linux/scripts/pause.sh',
+    'pausa': '/home/super/palamblock-palamos-linux/scripts/pausa.sh',
     'repren': '/home/super/palamblock-palamos-linux/scripts/repren.sh',
 }
 
