@@ -150,14 +150,14 @@ function start(){
 
     socket.on('execute', (data) => {
         console.log('Executing command: ' + data.command);
-        const cmd = commands.linux[data.command];
-        if (!cmd) {
-            console.error('Command ' + cmd +' not available');
+
+        if (!data.command ||  !commands.linux[data.command]) {
+            console.error('Command ' + data.command +' not available');
             return;
         }
 
         // Execute command
-        exec(cmd, (error, stdout, stderr) => {
+        exec(commands.linux[data.command], (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error: ${error.message}`);
                 return;
