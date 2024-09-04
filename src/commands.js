@@ -4,8 +4,8 @@ const linux_sudo = {
     'apaga': 'poweroff',
     'apaga-rapid': 'halt',
     'apaga-tot': 'shutdown -h now',
-    'pausa': ' DISPLAY=:1 xinput disable 12; xinput disable 13',
-    'repren': 'xinput enable 12; xinput enable 13'
+    'pausa': '/home/super/palamblock-palamos-linux/scripts/pause.sh',
+    'repren': '/home/super/palamblock-palamos-linux/scripts/repren.sh',
 }
 
 const linux = {
