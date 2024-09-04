@@ -1,6 +1,6 @@
 const linux = {
     'suspendre': 'pm-suspend',
-    'hibernar': 'pm-hibernate',
+    'hibernar': 'systemctl suspend -i',
     'reiniciar': 'reboot',
     'apaga': 'poweroff',
     'apaga-rapid': 'halt',
