@@ -9,7 +9,7 @@ const linux_sudo = {
 }
 
 const linux = {
-    'actualitza': 'cd /home/super/palamblock-palamos-linux; git pull; npm i; pm2 reload worker'
+    'actualitza': '/home/super/palamblock-palamos-linux/run.sh',
 }
 
 module.exports = {linux, linux_sudo};
