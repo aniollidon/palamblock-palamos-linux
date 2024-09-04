@@ -151,26 +151,44 @@ function start(){
     socket.on('execute', (data) => {
         console.log('Executing command: ' + data.command);
 
-        if (!data.command ||  !commands.linux[data.command]) {
+        if (!data.command ||  !commands.linux[data.command] && !commands.linux_sudo[data.command]) {
             console.error('Command ' + data.command +' not available');
             return;
         }
 
         // Execute command
-        exec(commands.linux[data.command], (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error: ${error.message}`);
-                return;
-            }
+        if(commands.linux[data.command])
+            exec(commands.linux[data.command], (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Error: ${error.message}`);
+                    return;
+                }
 
-            if (stderr) {
-                console.error(`Error: ${stderr}`);
-                return;
-            }
+                if (stderr) {
+                    console.error(`Error: ${stderr}`);
+                    return;
+                }
 
-            console.log(`stdout: ${stdout}`);
+                console.log(`stdout: ${stdout}`);
+            });
+        else if(commands.linux_sudo[data.command])
+            exec(`echo "${process.env.SUDO_PASSWORD}" | sudo -S " + ${commands.linux_sudo[data.command]}`,
+                (error, stdout, stderr) => {
+                if (error) {
+                    console.error(`Error: ${error.message}`);
+                    return;
+                }
+
+                if (stderr) {
+                    console.error(`Error: ${stderr}`);
+                    return;
+                }
+
+                console.log(`stdout: ${stdout}`);
+            });
         });
-    });
+
+
 
     socket.on('connect_error', (error) => {
         console.error('Error', error.message);
