@@ -10,6 +10,7 @@ const linux_sudo = {
 
 const linux = {
     'actualitza': '/home/super/palamblock-palamos-linux/run.sh',
+    'missatge': '/home/super/palamblock-palamos-linux/scripts/missatge.sh',
 }
 
 module.exports = {linux, linux_sudo};
