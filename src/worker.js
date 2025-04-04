@@ -163,6 +163,7 @@ function start(){
         // Execute command
         if(commands.linux[data.command]) {
             const args = data.message ? " " + data.message : "";
+            console.log("Executing command: " + commands.linux[data.command] + args);
             exec(commands.linux[data.command] + args, (error, stdout, stderr) => {
                 if (error) {
                     console.error(`Error: ${error.message}`);
@@ -177,22 +178,23 @@ function start(){
                 console.log(`stdout: ${stdout}`);
             });
         }
-        else if(commands.linux_sudo[data.command])
+        else if(commands.linux_sudo[data.command]) {
+            console.log("Executing command: " + commands.linux_sudo[data.command]);
             exec(`echo "${process.env.SUDO_PASSWORD}" | sudo -S ${commands.linux_sudo[data.command]}`,
                 (error, stdout, stderr) => {
-                if (error) {
-                    console.error(`Error: ${error.message}`);
-                    return;
-                }
+                    if (error) {
+                        console.error(`Error: ${error.message}`);
+                        return;
+                    }
 
-                if (stderr) {
-                    console.error(`Error: ${stderr}`);
-                    return;
-                }
+                    if (stderr) {
+                        console.error(`Error: ${stderr}`);
+                        return;
+                    }
 
-                console.log(`stdout: ${stdout}`);
-            });
-        });
+                    console.log(`stdout: ${stdout}`);
+                });
+        }});
 
 
 
