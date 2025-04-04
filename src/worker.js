@@ -56,6 +56,8 @@ async function setup_novnc(){
     });
 }
 function get_ssid_wifi(){
+    return ;
+    /*
     // command iwgetid -r
     return new Promise((resolve, reject) => {
         exec("iwgetid -r", (error, stdout, stderr) => {
@@ -71,27 +73,29 @@ function get_ssid_wifi(){
 
             resolve(stdout);
         });
-    });
+    });*/
 }
 
 function checkIPChanges(socket){
     let currentIP = null;
+    let counter = 0;
     setInterval(async () => {
         try {
             // Check IP
-            if (currentIP !== ip.address()) {
+            if (counter >= process.env.IP_SEND_ALWAYS_CHECK || currentIP !== ip.address()) {
+                counter = 0;
                 currentIP = ip.address();
 
-                get_ssid_wifi().then(async (ssid) => {
+                //get_ssid_wifi().then(async (ssid) => {
                     console.log("IP changed to " + currentIP);
                     // Send IP to server
                     socket.emit('updateOS', {
                         version: version,
                         os: os.platform(),
                         ip: currentIP,
-                        ssid: ssid,
+                        ssid: 'unknown',
                         username: username});
-                });
+                //});
             }
         }
         catch (err) {
