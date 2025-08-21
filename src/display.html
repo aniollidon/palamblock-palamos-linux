@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PalamOS Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .dashboard-card {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .card-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .card-content {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        .status-indicator {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+
+        .status-connected {
+            background: rgba(76, 175, 80, 0.8);
+        }
+
+        .status-disconnected {
+            background: rgba(244, 67, 54, 0.8);
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-size: 2rem;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin-right: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 20px;
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .header p {
+                font-size: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <span>Carregant PalamOS Dashboard...</span>
+    </div>
+
+    <div id="main-content" style="display: none;">
+        <div class="header">
+            <h1>PalamOS Dashboard</h1>
+            <p>Sistema de gestió i control centralitzat</p>
+        </div>
+
+        <div class="main-content">
+            <div class="dashboard-grid">
+                <div class="dashboard-card">
+                    <div class="card-icon">🖥️</div>
+                    <div class="card-title">Estat del Sistema</div>
+                    <div class="card-content">
+                        Sistema operatiu i funcionant correctament
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="card-icon">🌐</div>
+                    <div class="card-title">Connexió de Xarxa</div>
+                    <div class="card-content">
+                        Conectat al servidor PalamBlock
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="card-icon">👤</div>
+                    <div class="card-title">Usuari Actiu</div>
+                    <div class="card-content" id="username-display">
+                        Carregant...
+                    </div>
+                </div>
+
+                <div class="dashboard-card">
+                    <div class="card-icon">📡</div>
+                    <div class="card-title">IP Local</div>
+                    <div class="card-content" id="ip-display">
+                        Carregant...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-indicator" id="status-indicator">
+            <span id="status-text">Conectant...</span>
+        </div>
+    </div>
+
+    <script src="display.js"></script>
+</body>
+</html>
