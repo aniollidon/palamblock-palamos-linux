@@ -32,7 +32,6 @@ npm install
 2. Configura les variables d'entorn:
    ```env
    SERVER_PALAMBLOCK=ws://localhost:3000
-   API_PALAMBLOCK=http://localhost:3000
    IP_CHECK_INTERVAL=30
    IP_SEND_ALWAYS_CHECK=10
    ```

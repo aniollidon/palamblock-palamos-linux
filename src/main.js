@@ -1,9 +1,10 @@
 const { app, BrowserWindow, ipcMain, globalShortcut } = require('electron');
-const path = require('path');
 const os = require('os');
 const ip = require('ip');
 const io = require('socket.io-client');
 const axios = require('axios');
+const { getUsername } = require('./user');
+const { getCurrentSSID } = require('./network');
 require('dotenv').config();
 
 // Variables globals
@@ -13,6 +14,7 @@ let socket;
 let currentIP = null;
 let username = 'unknown';
 let isDisplayOpen = false;
+let allowCloseDisplay = false;
 
 // Configuració de l'aplicació
 const isDev = process.argv.includes('--dev');
@@ -48,7 +50,9 @@ function createMainWindow() {
 
 function createDisplayWindow() {
     if (displayWindow) {
+        allowCloseDisplay = true;
         displayWindow.close();
+        allowCloseDisplay = false;
     }
 
     displayWindow = new BrowserWindow({
@@ -64,8 +68,7 @@ function createDisplayWindow() {
         resizable: false,
         movable: false,
         minimizable: false,
-        maximizable: false,
-        closable: false
+        maximizable: false
     });
 
     // Carrega la pàgina de display
@@ -76,38 +79,62 @@ function createDisplayWindow() {
         displayWindow.show();
         isDisplayOpen = true;
         console.log('Display obert');
+        
+        // Registra els shortcuts només quan el display està obert
+        registerDisplayShortcuts();
     });
 
     // Prevé que l'usuari tanqui la finestra
     displayWindow.on('close', (e) => {
-        e.preventDefault();
-        console.log('Intent de tancar el display bloquejat');
-    });
-
-    // Desactiva les tecles de sortida
-    globalShortcut.register('Alt+F4', () => {
-        console.log('Alt+F4 desactivat');
-        return false;
-    });
-
-    globalShortcut.register('Escape', () => {
-        console.log('Escape desactivat');
-        return false;
+        if (!allowCloseDisplay) {
+            e.preventDefault();
+            console.log('Intent de tancar el display bloquejat');
+        }
     });
 }
 
 function closeDisplayWindow() {
     if (displayWindow) {
-        displayWindow.close();
-        displayWindow = null;
-        isDisplayOpen = false;
-        console.log('Display tancat');
-    }
-}
+        allowCloseDisplay = true;
 
-function getUsername() {
-    // En Linux, agafem el nom de l'usuari del sistema
-    return os.userInfo().username;
+        // Desregistra els shortcuts quan es tanca el display
+        unregisterDisplayShortcuts();
+
+        // Intenta sortir de fullscreen abans de tancar
+        try {
+            if (displayWindow.isFullScreen()) {
+                displayWindow.setFullScreen(false);
+            }
+        } catch (e) {
+            // ignore
+        }
+
+        // Evita que algun listener extern bloquegi el tancament
+        try {
+            displayWindow.removeAllListeners('close');
+        } catch (e) {
+            // ignore
+        }
+
+        displayWindow.once('closed', () => {
+            allowCloseDisplay = false;
+            displayWindow = null;
+            isDisplayOpen = false;
+            console.log('Display tancat');
+        });
+        displayWindow.close();
+
+        // Si no es tanca, forcem el destroy després d'un temps
+        setTimeout(() => {
+            if (displayWindow && !displayWindow.isDestroyed()) {
+                try {
+                    displayWindow.destroy();
+                } catch (e) {
+                    // ignore
+                }
+            }
+        }, 1500);
+    }
 }
 
 function checkIPChanges() {
@@ -119,11 +146,12 @@ function checkIPChanges() {
                 console.log('IP canviada a: ' + currentIP);
                 
                 if (socket && socket.connected) {
+                    const ssid = await getCurrentSSID();
                     socket.emit('updateOS', {
                         version: app.getVersion(),
                         os: os.platform(),
                         ip: currentIP,
-                        ssid: 'unknown',
+                        ssid: ssid,
                         username: username
                     });
                 }
@@ -134,17 +162,6 @@ function checkIPChanges() {
     }, (process.env.IP_CHECK_INTERVAL || 30) * 1000);
 }
 
-async function sendIPToServer(ip, username) {
-    try {
-        await axios.post(`${process.env.API_PALAMBLOCK || 'http://localhost:3000'}/register/machine`, {
-            currentIp: ip,
-            alumne: username
-        });
-    } catch (err) {
-        console.error('Servidor no trobat:', err.message);
-    }
-}
-
 function connectToServer() {
     const serverUrl = process.env.SERVER_PALAMBLOCK || 'ws://localhost:3000';
     
@@ -153,39 +170,44 @@ function connectToServer() {
         path: '/ws-os'
     });
 
-    socket.on('connect', () => {
+    socket.on('connect', async () => {
         console.log('Connectat al servidor');
         username = getUsername();
         currentIP = ip.address();
+        const ssid = await getCurrentSSID();
+
+        console.log("Enviant dades al servidor", {
+            version: app.getVersion(),
+            os: os.platform(),
+            ip: currentIP,
+            ssid: ssid,
+            alumne: username
+        });
         
         socket.emit('registerOS', {
             version: app.getVersion(),
             os: os.platform(),
             ip: currentIP,
-            ssid: 'unknown',
+            ssid: ssid,
             alumne: username
         });
 
-        // Envia la IP inicial al servidor
-        sendIPToServer(currentIP, username);
-        
         // Inicia la comprovació d'IP
         checkIPChanges();
     });
 
-    socket.on('open-display', (data) => {
-        console.log('Rebuda ordre d\'obrir display');
-        createDisplayWindow();
-    });
-
-    socket.on('close-display', (data) => {
-        console.log('Rebuda ordre de tancar display');
-        closeDisplayWindow();
-    });
-
     socket.on('execute', (data) => {
-        console.log('Executant comanda:', data.command);
-        // Aquí es podrien implementar comandes específiques de Windows
+        if (data.command === 'open-display') {
+            console.log('Rebuda ordre d\'obrir display');
+            createDisplayWindow();
+        }
+        else if (data.command === 'close-display') {
+            console.log('Rebuda ordre de tancar display');
+            closeDisplayWindow();
+        }
+        else {
+            console.log('Executant comanda:', data.command); //TODO: Implementar comandes
+        }
     });
 
     socket.on('ping', (data) => {
@@ -201,26 +223,58 @@ function connectToServer() {
     });
 }
 
-// Events de l'aplicació
-app.whenReady().then(() => {
-    createMainWindow();
-    connectToServer();
-    
-    // Registra shortcuts globals per a prevenir sortides (Linux)
-    globalShortcut.register('Ctrl+Alt+Delete', () => {
-        console.log('Ctrl+Alt+Delete desactivat');
+// Funció per registrar shortcuts només quan el display està obert
+function registerDisplayShortcuts() {
+    // Desactiva les tecles de sortida només quan el display està obert
+    globalShortcut.register('Alt+F4', () => {
+        console.log('Alt+F4 desactivat (display obert)');
+        return false;
+    });
+
+    globalShortcut.register('Escape', () => {
+        console.log('Escape desactivat (display obert)');
         return false;
     });
     
     // En Linux, també podem desactivar Alt+F2 (executar comanda)
     globalShortcut.register('Alt+F2', () => {
-        console.log('Alt+F2 desactivat');
+        console.log('Alt+F2 desactivat (display obert)');
         return false;
     });
     
     // En Linux, també podem desactivar Super (tecla Windows)
-    globalShortcut.register('Super', () => {
-        console.log('Super desactivat');
+    // Nota: Super pot no funcionar en tots els sistemes
+    try {
+        /*globalShortcut.register('Super', () => {
+            console.log('Super desSactivat (display obert)');
+            return false;
+        });*/
+    } catch (e) {
+        console.log('No s\'ha pogut registrar Super shortcut:', e);
+    }
+}
+
+// Funció per desregistrar shortcuts quan es tanca el display
+function unregisterDisplayShortcuts() {
+    try {
+        globalShortcut.unregister('Alt+F4');
+        globalShortcut.unregister('Escape');
+        globalShortcut.unregister('Alt+F2');
+        // Super no és un shortcut vàlid, l'eliminem
+        console.log('Shortcuts del display desregistrats');
+    } catch (e) {
+        console.log('Error desregistrant shortcuts:', e);
+    }
+}
+
+// Events de l'aplicació
+app.whenReady().then(() => {
+    createMainWindow();
+    connectToServer();
+    
+    // Registra shortcuts globals per a prevenir sortides (Linux) - sempre actius
+    globalShortcut.register('Ctrl+Alt+Delete', () => {
+        console.log('Ctrl+Alt+Delete desactivat');
         return false;
     });
 });
@@ -247,5 +301,14 @@ ipcMain.handle('get-ip', () => {
 });
 
 ipcMain.handle('get-username', () => {
-    return getUsername();
+    const username = getUsername();
+    console.log('🔍 get-username cridat, retornant:', username);
+    return username;
+});
+
+// Retorna la URL del servidor definida a .env per al display/viewer
+ipcMain.handle('get-server-url', () => {
+    const serverUrl = process.env.SERVER_PALAMBLOCK || 'http://localhost:3000';
+    console.log('🌐 get-server-url cridat, retornant:', serverUrl);
+    return serverUrl;
 });
