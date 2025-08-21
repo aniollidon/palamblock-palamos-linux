@@ -3,6 +3,8 @@ const os = require('os');
 const ip = require('ip');
 const io = require('socket.io-client');
 const axios = require('axios');
+const path = require('path');
+const fs = require('fs');
 const { getUsername } = require('./user');
 const { getCurrentSSID } = require('./network');
 require('dotenv').config();
@@ -10,14 +12,51 @@ require('dotenv').config();
 // Variables globals
 let mainWindow;
 let displayWindow;
+let loginWindow;
 let socket;
 let currentIP = null;
 let username = 'unknown';
 let isDisplayOpen = false;
 let allowCloseDisplay = false;
+let isLoggedIn = false;
 
 // Configuració de l'aplicació
 const isDev = process.argv.includes('--dev');
+
+function createLoginWindow() {
+    loginWindow = new BrowserWindow({
+        width: 500,
+        height: 600,
+        webPreferences: {
+            nodeIntegration: true,
+            contextIsolation: false
+        },
+        show: false,
+        resizable: false,
+        minimizable: false,
+        maximizable: false,
+        alwaysOnTop: true,
+        frame: false, // Sense barra de títol
+        center: true
+    });
+
+    // Carrega la pàgina de login
+    loginWindow.loadFile('src/login.html');
+
+    // Mostra la finestra quan estigui carregada
+    loginWindow.once('ready-to-show', () => {
+        loginWindow.show();
+        console.log('Login window oberta');
+    });
+
+    // Prevé que l'usuari tanqui la finestra de login
+    loginWindow.on('close', (e) => {
+        if (!isLoggedIn) {
+            e.preventDefault();
+            console.log('Intent de tancar login bloquejat');
+        }
+    });
+}
 
 function createMainWindow() {
     mainWindow = new BrowserWindow({
@@ -269,8 +308,17 @@ function unregisterDisplayShortcuts() {
 
 // Events de l'aplicació
 app.whenReady().then(() => {
-    createMainWindow();
-    connectToServer();
+    // Comprova si l'usuari està logat
+    username = getUsername();
+    if (username && username !== 'unknown') {
+        console.log('✅ Usuari ja logat:', username);
+        isLoggedIn = true;
+        createMainWindow();
+        connectToServer();
+    } else {
+        console.log('🔐 No hi ha usuari logat, mostrant login...');
+        createLoginWindow();
+    }
     
     // Registra shortcuts globals per a prevenir sortides (Linux) - sempre actius
     globalShortcut.register('Ctrl+Alt+Delete', () => {
@@ -311,4 +359,56 @@ ipcMain.handle('get-server-url', () => {
     const serverUrl = process.env.SERVER_PALAMBLOCK || 'http://localhost:3000';
     console.log('🌐 get-server-url cridat, retornant:', serverUrl);
     return serverUrl;
+});
+
+// Valida les credencials contra l'API
+ipcMain.handle('validate-credentials', async (event, payload) => {
+    const username = (payload && payload.username) || '';
+    const password = (payload && payload.password) || '';
+    const apiBase = process.env.SERVER_PALAMBLOCK || 'http://localhost:3000';
+    try {
+        const resp = await axios.post(`${apiBase}/api/v1/alumne/auth`, {
+            alumne: username,
+            clau: password
+        }, { validateStatus: () => true });
+        console.log('🔐 validate-credentials resposta:', resp.status);
+        if (resp.status === 200) return { ok: true };
+        if (resp.status === 401 || resp.status === 404) return { ok: false, reason: 'invalid' };
+        return { ok: false, reason: 'server', status: resp.status };
+    } catch (err) {
+        console.error('❌ Error validant credencials:', err && err.message);
+        return { ok: false, reason: 'network', message: err && err.message };
+    }
+});
+
+// Guarda el nom d'usuari al fitxer .user
+ipcMain.handle('save-username', async (event, username) => {
+    try {
+        const userfile = path.join(app.getPath('userData'), '.user');
+        fs.writeFileSync(userfile, username, 'utf8');
+        console.log('✅ Usuari guardat:', username);
+        return { success: true };
+    } catch (error) {
+        console.error('❌ Error guardant usuari:', error);
+        return { success: false, error: error.message };
+    }
+});
+
+// Quan el login es completa
+ipcMain.handle('login-completed', () => {
+    console.log('✅ Login completat, iniciant aplicació...');
+    isLoggedIn = true;
+    
+    // Tanca la finestra de login
+    if (loginWindow) {
+        loginWindow.close();
+        loginWindow = null;
+    }
+    
+    // Inicia l'aplicació principal
+    username = getUsername();
+    createMainWindow();
+    connectToServer();
+    
+    return { success: true };
 });
