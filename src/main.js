@@ -5,6 +5,8 @@ const io = require('socket.io-client');
 const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
+const { exec } = require('child_process');
+const commands = require('./commands');
 const { getUsername } = require('./user');
 const { getCurrentSSID } = require('./network');
 require('dotenv').config();
@@ -107,7 +109,8 @@ function createDisplayWindow() {
         resizable: false,
         movable: false,
         minimizable: false,
-        maximizable: false
+        maximizable: false,
+        kiosk: true
     });
 
     // Carrega la pàgina de display
@@ -116,11 +119,44 @@ function createDisplayWindow() {
     // Mostra la finestra quan estigui carregada
     displayWindow.once('ready-to-show', () => {
         displayWindow.show();
+        // Assegura visibilitat damunt de tot i en tots els escriptoris
+        try {
+            displayWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+            displayWindow.setAlwaysOnTop(true, 'screen-saver');
+            displayWindow.focus();
+        } catch {}
         isDisplayOpen = true;
         console.log('Display obert');
         
         // Registra els shortcuts només quan el display està obert
         registerDisplayShortcuts();
+    });
+
+    // Reforç de focus: si es minimitza o perd el focus, el recuperem
+    displayWindow.on('minimize', (e) => {
+        try { e.preventDefault(); } catch {}
+        try {
+            displayWindow.restore();
+            displayWindow.show();
+            displayWindow.focus();
+        } catch {}
+    });
+    
+    displayWindow.on('blur', () => {
+        if (isDisplayOpen && displayWindow) {
+            setTimeout(() => {
+                try {
+                    displayWindow.show();
+                    displayWindow.focus();
+                } catch {}
+            }, 50);
+        }
+    });
+
+    displayWindow.on('leave-full-screen', () => {
+        if (isDisplayOpen) {
+            try { displayWindow.setFullScreen(true); } catch {}
+        }
     });
 
     // Prevé que l'usuari tanqui la finestra
@@ -245,7 +281,43 @@ function connectToServer() {
             closeDisplayWindow();
         }
         else {
-            console.log('Executant comanda:', data.command); //TODO: Implementar comandes
+            console.log('Executant comanda:', data.command);
+            if (!data.command || (!commands.linux[data.command] && !commands.linux_sudo[data.command])) {
+                console.error('Comanda ' + data.command + ' no disponible');
+                return;
+            }
+
+            if (commands.linux[data.command]) {
+                const args = data.message ? ' ' + data.message : '';
+                console.log('Executant comanda: ' + commands.linux[data.command] + args);
+                exec(commands.linux[data.command] + args, (error, stdout, stderr) => {
+                    if (error) {
+                        console.error(`Error: ${error.message}`);
+                        return;
+                    }
+                    if (stderr) {
+                        console.error(`Error: ${stderr}`);
+                        return;
+                    }
+                    console.log(`stdout: ${stdout}`);
+                });
+            }
+            else if (commands.linux_sudo[data.command]) {
+                console.log('Executant comanda (sudo): ' + commands.linux_sudo[data.command]);
+                exec(`echo "${process.env.SUDO_PASSWORD}" | sudo -S ${commands.linux_sudo[data.command]}`,
+                    (error, stdout, stderr) => {
+                        if (error) {
+                            console.error(`Error: ${error.message}`);
+                            return;
+                        }
+                        if (stderr) {
+                            console.error(`Error: ${stderr}`);
+                            return;
+                        }
+                        console.log(`stdout: ${stdout}`);
+                    }
+                );
+            }
         }
     });
 
@@ -280,17 +352,28 @@ function registerDisplayShortcuts() {
         console.log('Alt+F2 desactivat (display obert)');
         return false;
     });
-    
-    // En Linux, també podem desactivar Super (tecla Windows)
-    // Nota: Super pot no funcionar en tots els sistemes
+
+    // Bloqueja altres combinacions habituals
+    globalShortcut.register('CommandOrControl+W', () => {
+        console.log('Ctrl/Cmd+W desactivat (display obert)');
+        return false;
+    });
+    globalShortcut.register('CommandOrControl+Q', () => {
+        console.log('Ctrl/Cmd+Q desactivat (display obert)');
+        return false;
+    });
+    globalShortcut.register('F11', () => {
+        console.log('F11 desactivat (display obert)');
+        return false;
+    });
+
+    // En molts entorns Linux, Alt+Tab i Super són reservats pel SO i no es poden bloquejar
     try {
         /*globalShortcut.register('Super', () => {
-            console.log('Super desSactivat (display obert)');
+            console.log('Super desactivat (display obert)');
             return false;
         });*/
-    } catch (e) {
-        console.log('No s\'ha pogut registrar Super shortcut:', e);
-    }
+    } catch {}
 }
 
 // Funció per desregistrar shortcuts quan es tanca el display
@@ -299,7 +382,9 @@ function unregisterDisplayShortcuts() {
         globalShortcut.unregister('Alt+F4');
         globalShortcut.unregister('Escape');
         globalShortcut.unregister('Alt+F2');
-        // Super no és un shortcut vàlid, l'eliminem
+        globalShortcut.unregister('CommandOrControl+W');
+        globalShortcut.unregister('CommandOrControl+Q');
+        globalShortcut.unregister('F11');
         console.log('Shortcuts del display desregistrats');
     } catch (e) {
         console.log('Error desregistrant shortcuts:', e);
