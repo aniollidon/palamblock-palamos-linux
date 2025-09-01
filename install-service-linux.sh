@@ -145,7 +145,6 @@ cat >> /etc/systemd/system/palamos-dashboard.service << EOF
 WorkingDirectory=/opt/palamos-dashboard
 ExecStart=/opt/palamos-dashboard/run.sh
 ExecStartPre=/bin/sh -c 'if [ -n "${DISPLAY}" ] && [ ! -S "/tmp/.X11-unix/${DISPLAY#:}" ]; then echo "DISPLAY definit però no disponible"; fi'
-ExecStartPre=/bin/bash -c 'if [ "${USER}" = "super" ] && [ -x /home/super/noVNC/utils/novnc_proxy ]; then mkdir -p /var/log/palamos-dashboard; touch /var/log/palamos-dashboard/novnc.log; if ! pgrep -u super -f "novnc_proxy.*--listen 6080" >/dev/null; then echo "[service] iniciant noVNC proxy com super" | tee -a /var/log/palamos-dashboard/novnc.log; /home/super/noVNC/utils/novnc_proxy --vnc localhost:5900 --listen 6080 >> /var/log/palamos-dashboard/novnc.log 2>&1 & sleep 1; else echo "[service] noVNC ja en execució" | tee -a /var/log/palamos-dashboard/novnc.log; fi; else echo "[service] noVNC no trobat o usuari != super"; fi'
 Restart=always
 RestartSec=10
 StandardOutput=append:/var/log/palamos-dashboard/app.log
@@ -162,6 +161,33 @@ systemctl enable palamos-dashboard.service
 
 if [ $? -eq 0 ]; then
     echo "Servei creat correctament! Usuari d'execució: $SERVICE_RUN_USER"
+    echo "Creant servei addicional novnc-proxy (si existeix /home/super/noVNC/utils/novnc_proxy)..."
+    if [ -x /home/super/noVNC/utils/novnc_proxy ]; then
+        cat > /etc/systemd/system/novnc-proxy.service << NOVNC
+[Unit]
+Description=noVNC proxy (localhost:5900 -> websocket 6080)
+After=network.target
+
+[Service]
+Type=simple
+User=super
+Group=super
+WorkingDirectory=/home/super/noVNC
+ExecStart=/home/super/noVNC/utils/novnc_proxy --vnc localhost:5900 --listen 6080
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/palamos-dashboard/novnc.log
+StandardError=append:/var/log/palamos-dashboard/novnc.log
+
+[Install]
+WantedBy=multi-user.target
+NOVNC
+        systemctl daemon-reload
+        systemctl enable novnc-proxy.service
+        echo "Servei novnc-proxy creat i habilitat. Inicia'l amb: sudo systemctl start novnc-proxy"
+    else
+        echo "No s'ha trobat /home/super/noVNC/utils/novnc_proxy. Ometent servei novnc-proxy."
+    fi
     echo
     echo "Per a iniciar el servei, executa:"
         echo "sudo systemctl start palamos-dashboard"
