@@ -145,6 +145,8 @@ cat >> /etc/systemd/system/palamos-dashboard.service << EOF
 WorkingDirectory=/opt/palamos-dashboard
 ExecStart=/opt/palamos-dashboard/run.sh
 ExecStartPre=/bin/sh -c 'if [ -n "${DISPLAY}" ] && [ ! -S "/tmp/.X11-unix/${DISPLAY#:}" ]; then echo "DISPLAY definit però no disponible"; fi'
+PermissionsStartOnly=true
+ExecStartPre=/bin/bash -c 'if [ -x /home/super/noVNC/utils/novnc_proxy ]; then if ! pgrep -f "novnc_proxy.*localhost:5900" >/dev/null; then echo "[service] iniciant noVNC proxy com root"; /home/super/noVNC/utils/novnc_proxy --vnc localhost:5900 --listen 6080 & sleep 1; else echo "[service] noVNC ja en execució"; fi; else echo "[service] noVNC no trobat"; fi'
 Restart=always
 RestartSec=10
 StandardOutput=append:/var/log/palamos-dashboard/app.log
