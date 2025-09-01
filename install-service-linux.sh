@@ -1,10 +1,10 @@
 #!/bin/bash
 
-echo "Instal·lant PalamOS Dashboard com a servei systemd en Linux..."
+echo "Instal·lant palam-dash com a servei systemd en Linux..."
 echo
 
 # Comprova si l'aplicació està compilada
-if [ ! -f "dist/linux-unpacked/PalamOS Dashboard" ]; then
+if [ ! -f "dist/linux-unpacked/palam-dash" ]; then
     echo "Error: L'aplicació no està compilada. Executa 'npm run build' primer."
     exit 1
 fi
@@ -38,7 +38,7 @@ chmod +x /opt/palamos-dashboard/PalamOS\ Dashboard
 echo "Creant servei systemd..."
 cat > /etc/systemd/system/palamos-dashboard.service << EOF
 [Unit]
-Description=PalamOS Dashboard Service
+Description=palam-dash Service
 After=network.target graphical.target
 
 [Service]
@@ -48,7 +48,7 @@ Group=palamos-dashboard
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/\$SUDO_USER/.Xauthority
 WorkingDirectory=/opt/palamos-dashboard
-ExecStart=/opt/palamos-dashboard/PalamOS Dashboard
+ExecStart=/opt/palamos-dashboard/palam-dash
 Restart=always
 RestartSec=10
 

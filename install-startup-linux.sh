@@ -1,10 +1,10 @@
 #!/bin/bash
 
-echo "Instal·lant PalamOS Dashboard com a programa d'auto-inici en Linux..."
+echo "Instal·lant palam-dash com a programa d'auto-inici en Linux..."
 echo
 
 # Comprova si l'aplicació està compilada
-if [ ! -f "dist/linux-unpacked/PalamOS Dashboard" ]; then
+if [ ! -f "dist/linux-unpacked/palam-dash" ]; then
     echo "Error: L'aplicació no està compilada. Executa 'npm run build' primer."
     exit 1
 fi
@@ -35,9 +35,9 @@ mkdir -p "$USER_HOME/.config/autostart"
 cat > "$USER_HOME/.config/autostart/palamos-dashboard.desktop" << EOF
 [Desktop Entry]
 Type=Application
-Name=PalamOS Dashboard
+Name=palam-dash
 Comment=Sistema de gestió i control centralitzat
-Exec=/opt/palamos-dashboard/PalamOS Dashboard
+Exec=/opt/palamos-dashboard/palam-dash
 Terminal=false
 Hidden=false
 X-GNOME-Autostart-enabled=true
