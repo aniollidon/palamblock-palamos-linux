@@ -1,10 +1,10 @@
 #!/bin/bash
 
-echo "Instal·lant PalamOS Dashboard com a servei systemd en Linux..."
+echo "Instal·lant palam-dash com a servei systemd en Linux..."
 echo
 
 # Comprova si l'aplicació està compilada
-if [ ! -f "dist/linux-unpacked/PalamOS Dashboard" ]; then
+if [ ! -f "dist/linux-unpacked/palam-dash" ]; then
     echo "Error: L'aplicació no està compilada. Executa 'npm run build' primer."
     exit 1
 fi
@@ -39,7 +39,7 @@ useradd -r -s /bin/false palamos-dashboard 2>/dev/null || true
 
 # Canvia la propietat dels fitxers
 chown -R palamos-dashboard:palamos-dashboard /opt/palamos-dashboard
-chmod +x /opt/palamos-dashboard/PalamOS\ Dashboard
+chmod +x /opt/palamos-dashboard/palam-dash
 
 # Directori de logs
 LOG_DIR="/var/log/palamos-dashboard"
@@ -51,7 +51,7 @@ chmod 750 "$LOG_DIR"
 echo "Creant servei systemd (amb logs dedicats)..."
 cat > /etc/systemd/system/palamos-dashboard.service << EOF
 [Unit]
-Description=PalamOS Dashboard Service
+Description=palam-dash Service
 After=network.target graphical.target
 
 [Service]
@@ -61,7 +61,7 @@ Group=palamos-dashboard
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/\$SUDO_USER/.Xauthority
 WorkingDirectory=/opt/palamos-dashboard
-ExecStart=/opt/palamos-dashboard/PalamOS Dashboard
+ExecStart=/opt/palamos-dashboard/palam-dash
 Restart=always
 RestartSec=10
 StandardOutput=append:/var/log/palamos-dashboard/app.log
