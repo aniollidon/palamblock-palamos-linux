@@ -19,6 +19,7 @@ fi
 # Paràmetres
 SERVICE_RUN_USER="palamos-dashboard"   # Usuari per defecte (de sistema)
 USE_EXISTING_USER=false
+DISPLAY_VALUE=":1"  # DISPLAY per defecte
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -27,6 +28,11 @@ while [ $# -gt 0 ]; do
             if [ -z "${1:-}" ]; then echo "Error: falta valor per --as-user"; exit 1; fi
             SERVICE_RUN_USER="$1"
             USE_EXISTING_USER=true
+            ;;
+        --display)
+            shift
+            if [ -z "${1:-}" ]; then echo "Error: falta valor per --display"; exit 1; fi
+            DISPLAY_VALUE="$1"
             ;;
         *)
             echo "Argument desconegut: $1"; exit 1;;
@@ -40,6 +46,31 @@ mkdir -p /opt/palamos-dashboard
 # Copia l'aplicació
 echo "Copiant aplicació..."
 cp -r dist/linux-unpacked/* /opt/palamos-dashboard/
+
+# Copia / crea run.sh i fixa DISPLAY
+EXEC_START="/opt/palamos-dashboard/run.sh"
+if [ -f "run.sh" ]; then
+    echo "Copiant run.sh i establint DISPLAY=$DISPLAY_VALUE..."
+    cp run.sh /opt/palamos-dashboard/run.sh
+    # Intenta substituir línia DISPLAY_VAL; si no existeix, afegeix-la
+    if grep -q '^DISPLAY_VAL=' /opt/palamos-dashboard/run.sh; then
+        sed -i "s|^DISPLAY_VAL=.*|DISPLAY_VAL=\"$DISPLAY_VALUE\"|" /opt/palamos-dashboard/run.sh
+    else
+        echo "DISPLAY_VAL=\"$DISPLAY_VALUE\"" >> /opt/palamos-dashboard/run.sh
+    fi
+else
+    echo "Generant run.sh (plantilla) amb DISPLAY=$DISPLAY_VALUE..."
+    cat > /opt/palamos-dashboard/run.sh << RSEOF
+#!/bin/bash
+set -euo pipefail
+APP="/opt/palamos-dashboard/palam-dash"
+DISPLAY_VAL="$DISPLAY_VALUE"
+export DISPLAY="${DISPLAY_VAL}"
+echo "[run.sh] Iniciant amb DISPLAY=${DISPLAY}"
+exec "$APP"
+RSEOF
+fi
+chmod +x /opt/palamos-dashboard/run.sh
 
 # Crea l'arxiu .env al directori del servei
 echo "Copiant configuració (.env)..."
@@ -82,7 +113,7 @@ fi
 # Directori de logs
 LOG_DIR="/var/log/palamos-dashboard"
 mkdir -p "$LOG_DIR"
-chown palamos-dashboard:palamos-dashboard "$LOG_DIR"
+chown "$SERVICE_RUN_USER":"$SERVICE_RUN_USER" "$LOG_DIR"
 chmod 750 "$LOG_DIR"
 
 # Crea el fitxer de servei systemd
@@ -97,7 +128,7 @@ Wants=network-online.target
 Type=simple
 User=$SERVICE_RUN_USER
 Group=$SERVICE_RUN_USER
-Environment=DISPLAY=:0
+Environment=DISPLAY=$DISPLAY_VALUE
 EOF
 
 # Si usem usuari de sistema afegim caches pròpies; si és existent confiem en el seu HOME
