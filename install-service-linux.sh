@@ -5,11 +5,10 @@ echo "Opcions:"
 echo "  --user <usuari>          (REQUERIT) Usuari existent que executarà el servei (unitat a ~/.config/systemd/user)"
 echo "  --display <:N>           Forçar DISPLAY (per defecte :1)"
 echo "  --wait-display <s>       (Opcional) Espera fins a <s> segons a que el socket X11 existeixi (defecte 30)"
-echo "  --linger                 Habilita 'linger' perquè l'servei arrenqui sense sessió iniciada"
 echo
 echo "Exemples:"
 echo "  sudo ./install-service-linux.sh --user alumne --display :0"
-echo "  sudo ./install-service-linux.sh --user alumne --display :0 --wait-display 60 --linger"
+echo "  sudo ./install-service-linux.sh --user alumne --display :0 --wait-display 60"
 echo
 
 # Comprova si l'aplicació està compilada
@@ -27,7 +26,6 @@ fi
 # Paràmetres
 SERVICE_RUN_USER=""        # Obligatori amb --user
 DISPLAY_VALUE=":1"         # DISPLAY per defecte
-ENABLE_LINGER=false         # Linger off per defecte
 WAIT_DISPLAY_SECS=10        # Temps d'espera per socket X11
 
 while [ $# -gt 0 ]; do
@@ -48,9 +46,6 @@ while [ $# -gt 0 ]; do
             shift
             if [ -z "${1:-}" ]; then echo "Error: falta valor per --wait-display"; exit 1; fi
             WAIT_DISPLAY_SECS="$1"
-            ;;
-        --linger)
-            ENABLE_LINGER=true
             ;;
         *)
             echo "Argument desconegut: $1"; exit 1;;
@@ -150,17 +145,25 @@ WantedBy=default.target
 EOF
 chown $SERVICE_RUN_USER:$SERVICE_RUN_USER "$USER_UNIT_DIR/palamos-dashboard.service"
 
-if [ "$ENABLE_LINGER" = true ]; then
-    echo "Habilitant linger per a $SERVICE_RUN_USER (arrencarà encara sense login)..."
-    loginctl enable-linger "$SERVICE_RUN_USER" || echo "Avís: no s'ha pogut habilitar linger"
+UID_NUM=$(id -u "$SERVICE_RUN_USER")
+USER_RUNTIME_DIR="/run/user/$UID_NUM"
+ENABLE_OK=false
+
+echo "Verificant sessió d'usuari (XDG_RUNTIME_DIR)..."
+if [ -d "$USER_RUNTIME_DIR" ]; then
+    echo "Directori $USER_RUNTIME_DIR present. Intentant habilitar unitat d'usuari..."
+    if sudo -u "$SERVICE_RUN_USER" XDG_RUNTIME_DIR="$USER_RUNTIME_DIR" systemctl --user daemon-reload 2>/dev/null && \
+       sudo -u "$SERVICE_RUN_USER" XDG_RUNTIME_DIR="$USER_RUNTIME_DIR" systemctl --user enable palamos-dashboard.service 2>/dev/null; then
+        ENABLE_OK=true
+    else
+        echo "No s'ha pogut habilitar ara (potser encara no hi ha bus DBus de sessió)." >&2
+    fi
+else
+    echo "Encara no existeix $USER_RUNTIME_DIR (no hi ha login de l'usuari). Deixem unitat en estat pendent." >&2
 fi
 
-sudo -u "$SERVICE_RUN_USER" systemctl --user daemon-reload
-sudo -u "$SERVICE_RUN_USER" systemctl --user enable palamos-dashboard.service
-
-if [ $? -eq 0 ]; then
-    echo "Servei d'usuari creat correctament per: $SERVICE_RUN_USER"
-    echo "Creant servei addicional novnc-proxy (si existeix /home/super/noVNC/utils/novnc_proxy)..."
+echo "Servei d'usuari creat per: $SERVICE_RUN_USER (estat: $( [ "$ENABLE_OK" = true ] && echo 'habilitat' || echo 'pendent' ))"
+echo "Creant servei addicional novnc-proxy (si existeix /home/super/noVNC/utils/novnc_proxy)..."
     if [ -x /home/super/noVNC/utils/novnc_proxy ]; then
         cat > /etc/systemd/system/novnc-proxy.service << NOVNC
 [Unit]
@@ -187,25 +190,23 @@ NOVNC
     else
         echo "No s'ha trobat /home/super/noVNC/utils/novnc_proxy. Ometent servei novnc-proxy."
     fi
-    echo
-    echo "Com a $SERVICE_RUN_USER pots gestionar el servei així:"
-    echo "  systemctl --user start palamos-dashboard"
-    echo "  systemctl --user stop palamos-dashboard"
-    echo "  systemctl --user status palamos-dashboard"
-    echo "Logs: $USER_LOG_DIR (tail -f) o journalctl --user -u palamos-dashboard -f"
-    if [ "$ENABLE_LINGER" = true ]; then
-        echo "Linger actiu: arrencarà després del boot sense login."
-    else
-        echo "Sense linger: arrencarà després del login de l'usuari."
-    fi
-    echo
-    echo "Deshabilitar servei (com a $SERVICE_RUN_USER):"
-    echo "  systemctl --user disable palamos-dashboard"
-    echo "Treure linger (root):"
-    echo "  loginctl disable-linger $SERVICE_RUN_USER"
+echo
+echo "Com a $SERVICE_RUN_USER després del primer login executa (si estat pendent):"
+if [ "$ENABLE_OK" = false ]; then
+    echo "  systemctl --user daemon-reload"
+    echo "  systemctl --user enable --now palamos-dashboard"
 else
-    echo "Error creant el servei systemd."
+    echo "  systemctl --user start palamos-dashboard (ja habilitat)"
 fi
+echo "Per parar:"
+echo "  systemctl --user stop palamos-dashboard"
+echo "Estat:"
+echo "  systemctl --user status palamos-dashboard"
+echo "Logs: tail -f $USER_LOG_DIR/app.log"
+echo "  journalctl --user -u palamos-dashboard -f"
+echo
+echo "Per deshabilitar:"
+echo "  systemctl --user disable palamos-dashboard"
 
 echo
 echo "Instal·lació completada."
