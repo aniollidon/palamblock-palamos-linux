@@ -23,8 +23,15 @@ echo "Copiant aplicació..."
 cp -r dist/linux-unpacked/* /opt/palamos-dashboard/
 
 # Crea l'arxiu .env al directori del servei
-echo "Creant configuració..."
-cp env.example /opt/palamos-dashboard/.env
+echo "Copiant configuració (.env)..."
+if [ -f ".env" ]; then
+    cp .env /opt/palamos-dashboard/.env
+elif [ -f "env.example" ]; then
+    echo "Avís: .env no trobat. Usant env.example com a base."
+    cp env.example /opt/palamos-dashboard/.env
+else
+    echo "Avís: No s'ha trobat cap fitxer .env ni env.example. Continuant sense configuració."
+fi
 
 # Crea l'usuari del servei
 echo "Creant usuari del servei..."
@@ -34,8 +41,14 @@ useradd -r -s /bin/false palamos-dashboard 2>/dev/null || true
 chown -R palamos-dashboard:palamos-dashboard /opt/palamos-dashboard
 chmod +x /opt/palamos-dashboard/PalamOS\ Dashboard
 
+# Directori de logs
+LOG_DIR="/var/log/palamos-dashboard"
+mkdir -p "$LOG_DIR"
+chown palamos-dashboard:palamos-dashboard "$LOG_DIR"
+chmod 750 "$LOG_DIR"
+
 # Crea el fitxer de servei systemd
-echo "Creant servei systemd..."
+echo "Creant servei systemd (amb logs dedicats)..."
 cat > /etc/systemd/system/palamos-dashboard.service << EOF
 [Unit]
 Description=PalamOS Dashboard Service
@@ -51,6 +64,8 @@ WorkingDirectory=/opt/palamos-dashboard
 ExecStart=/opt/palamos-dashboard/PalamOS Dashboard
 Restart=always
 RestartSec=10
+StandardOutput=append:/var/log/palamos-dashboard/app.log
+StandardError=append:/var/log/palamos-dashboard/error.log
 
 [Install]
 WantedBy=multi-user.target
