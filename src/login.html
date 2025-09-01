@@ -44,6 +44,34 @@
     <script>
         const { ipcRenderer } = require('electron');
 
+        // --- Diagnòstic IPC: mostra a la consola l'estat de la connexió ---
+        (function ipcDiagnostics(){
+            try {
+                if(!ipcRenderer) {
+                    console.log('[IPC] ipcRenderer no definit');
+                    return;
+                }
+                console.log('[IPC] ipcRenderer carregat. Versió Node:', process.versions.node, 'Electron:', process.versions.electron, 'Chrome:', process.versions.chrome);
+                // Prova d'invoke: encara que no hi hagi handler sabrem si el canal arriba al main
+                ipcRenderer.invoke('ipc-test-probe', {t: Date.now()})
+                    .then(res => {
+                        console.log('[IPC] invoke resposta correcta (handler existent):', res);
+                    })
+                    .catch(err => {
+                        console.log('[IPC] invoke canal accessible però sense handler o amb error:', err.message);
+                    });
+                // També fem un send + on possible
+                const replyChannel = 'ipc-test-probe-reply';
+                ipcRenderer.once(replyChannel, (_ev, data)=>{
+                    console.log('[IPC] reply rebut via event:', data);
+                });
+                try { ipcRenderer.send('ipc-test-probe-send', {t: Date.now(), replyChannel}); } catch(e){ console.log('[IPC] error fent send:', e.message); }
+            } catch (e) {
+                console.log('[IPC] Excepció al diagnòstic:', e.message);
+            }
+        })();
+        // --- Fi diagnòstic IPC ---
+
         function showError(message) {
             const errorEl = document.getElementById('error');
             const successEl = document.getElementById('success');
