@@ -1,7 +1,15 @@
 #!/bin/bash
 
-echo "Instal·lant palam-dash com a servei systemd en Linux..."
-echo "Opció: --as-user <usuari_escriptori> per executar el servei amb un usuari existent (p.ex. alumne)"
+echo "Instal·lant palam-dash com a servei d'usuari systemd (obligatori --user)..."
+echo "Opcions:"
+echo "  --user <usuari>          (REQUERIT) Usuari existent que executarà el servei (unitat a ~/.config/systemd/user)"
+echo "  --display <:N>           Forçar DISPLAY (per defecte :1)"
+echo "  --wait-display <s>       (Opcional) Espera fins a <s> segons a que el socket X11 existeixi (defecte 30)"
+echo "  --linger                 Habilita 'linger' perquè l'servei arrenqui sense sessió iniciada"
+echo
+echo "Exemples:"
+echo "  sudo ./install-service-linux.sh --user alumne --display :0"
+echo "  sudo ./install-service-linux.sh --user alumne --display :0 --wait-display 60 --linger"
 echo
 
 # Comprova si l'aplicació està compilada
@@ -17,28 +25,47 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Paràmetres
-SERVICE_RUN_USER="palamos-dashboard"   # Usuari per defecte (de sistema)
-USE_EXISTING_USER=false
-DISPLAY_VALUE=":1"  # DISPLAY per defecte
+SERVICE_RUN_USER=""        # Obligatori amb --user
+DISPLAY_VALUE=":1"         # DISPLAY per defecte
+ENABLE_LINGER=false         # Linger off per defecte
+WAIT_DISPLAY_SECS=10        # Temps d'espera per socket X11
 
 while [ $# -gt 0 ]; do
     case "$1" in
-        --as-user)
+        --user|--as-user)
+            # --as-user mantingut per compatibilitat retro, però marcat obsolet
+            [ "$1" = "--as-user" ] && echo "Avís: --as-user està obsolet, utilitza --user" >&2
             shift
-            if [ -z "${1:-}" ]; then echo "Error: falta valor per --as-user"; exit 1; fi
+            if [ -z "${1:-}" ]; then echo "Error: falta valor per --user"; exit 1; fi
             SERVICE_RUN_USER="$1"
-            USE_EXISTING_USER=true
             ;;
         --display)
             shift
             if [ -z "${1:-}" ]; then echo "Error: falta valor per --display"; exit 1; fi
             DISPLAY_VALUE="$1"
             ;;
+        --wait-display)
+            shift
+            if [ -z "${1:-}" ]; then echo "Error: falta valor per --wait-display"; exit 1; fi
+            WAIT_DISPLAY_SECS="$1"
+            ;;
+        --linger)
+            ENABLE_LINGER=true
+            ;;
         *)
             echo "Argument desconegut: $1"; exit 1;;
     esac
     shift
 done
+
+if [ -z "$SERVICE_RUN_USER" ]; then
+    echo "Error: has d'especificar --user <usuari>"; exit 1
+fi
+
+# Comprova usuari existent
+if ! id -u "$SERVICE_RUN_USER" >/dev/null 2>&1; then
+    echo "Error: l'usuari $SERVICE_RUN_USER no existeix"; exit 1
+fi
 
 # Crea el directori del servei
 mkdir -p /opt/palamos-dashboard
@@ -83,84 +110,56 @@ else
     echo "Avís: No s'ha trobat cap fitxer .env ni env.example. Continuant sense configuració."
 fi
 
-if [ "$USE_EXISTING_USER" = true ]; then
-    # Executarem amb un usuari d'escriptori existent
-    if ! id -u "$SERVICE_RUN_USER" >/dev/null 2>&1; then
-        echo "Error: l'usuari $SERVICE_RUN_USER no existeix"; exit 1; fi
-    echo "Configurant servei per executar-se com a usuari existent: $SERVICE_RUN_USER"
-    # Només assegurem permisos de lectura/execució
-    chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER /opt/palamos-dashboard
-    chmod +x /opt/palamos-dashboard/palam-dash
-    SERVICE_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
-else
-    # Usuari de sistema aïllat
-    SERVICE_USER="$SERVICE_RUN_USER"
-    SERVICE_HOME="/var/lib/$SERVICE_USER"
-    echo "Creant / validant usuari de sistema: $SERVICE_USER"
-    if id -u "$SERVICE_USER" >/dev/null 2>&1; then
-            CURRENT_HOME=$(getent passwd "$SERVICE_USER" | cut -d: -f6)
-            [ ! -d "$SERVICE_HOME" ] && mkdir -p "$SERVICE_HOME"
-            [ "$CURRENT_HOME" != "$SERVICE_HOME" ] && usermod -d "$SERVICE_HOME" "$SERVICE_USER"
-    else
-            useradd -r -d "$SERVICE_HOME" -s /usr/sbin/nologin -m "$SERVICE_USER"
-    fi
-    mkdir -p "$SERVICE_HOME/.cache/fontconfig"
-    chown -R $SERVICE_USER:$SERVICE_USER "$SERVICE_HOME"
-    chown -R $SERVICE_USER:$SERVICE_USER /opt/palamos-dashboard
-    chmod +x /opt/palamos-dashboard/palam-dash
-fi
+echo "Configurant permisos perquè el servei el gestioni l'usuari: $SERVICE_RUN_USER"
+chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER /opt/palamos-dashboard
+chmod +x /opt/palamos-dashboard/palam-dash
+SERVICE_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
 
-# Directori de logs
-LOG_DIR="/var/log/palamos-dashboard"
-mkdir -p "$LOG_DIR"
-chown "$SERVICE_RUN_USER":"$SERVICE_RUN_USER" "$LOG_DIR"
-chmod 750 "$LOG_DIR"
+USER_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
+USER_UNIT_DIR="$USER_HOME/.config/systemd/user"
+mkdir -p "$USER_UNIT_DIR"
+chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER "$USER_HOME/.config/systemd"
 
-# Crea el fitxer de servei systemd
-echo "Creant servei systemd (amb logs dedicats)..."
-cat > /etc/systemd/system/palamos-dashboard.service << EOF
+# Logs dins ~/.local/share/palamamos-dashboard per evitar permissos root
+USER_LOG_DIR="$USER_HOME/.local/share/palamamos-dashboard/logs"
+mkdir -p "$USER_LOG_DIR"
+chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER "$USER_HOME/.local" "$USER_LOG_DIR"
+
+echo "Creant servei d'usuari (només per a $SERVICE_RUN_USER)..."
+cat > "$USER_UNIT_DIR/palamos-dashboard.service" << EOF
 [Unit]
-Description=palam-dash Service
-After=network.target graphical.target
+Description=palam-dash Service (user $SERVICE_RUN_USER)
+After=network.target graphical-session.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=$SERVICE_RUN_USER
-Group=$SERVICE_RUN_USER
 Environment=DISPLAY=$DISPLAY_VALUE
-EOF
-
-# Si usem usuari de sistema afegim caches pròpies; si és existent confiem en el seu HOME
-if [ "$USE_EXISTING_USER" = true ]; then
-    : # No fem res extra
-else
-cat >> /etc/systemd/system/palamos-dashboard.service << EOF
-Environment=XDG_CACHE_HOME=$SERVICE_HOME/.cache
-Environment=HOME=$SERVICE_HOME
-EOF
-fi
-
-cat >> /etc/systemd/system/palamos-dashboard.service << EOF
 WorkingDirectory=/opt/palamos-dashboard
+ExecStartPre=/bin/sh -c 'echo "[palam-dash] Esperant DISPLAY $DISPLAY durant fins a ${WAIT_DISPLAY_SECS}s"; \
+ for i in $(seq 1 ${WAIT_DISPLAY_SECS}); do [ -S /tmp/.X11-unix/${DISPLAY#:} ] && echo "Socket X11 disponible" && exit 0; sleep 1; done; \
+ echo "No s\'ha trobat socket X11 /tmp/.X11-unix/${DISPLAY#:} després de ${WAIT_DISPLAY_SECS}s" >&2'
 ExecStart=/opt/palamos-dashboard/run.sh
-ExecStartPre=/bin/sh -c 'if [ -n "${DISPLAY}" ] && [ ! -S "/tmp/.X11-unix/${DISPLAY#:}" ]; then echo "DISPLAY definit però no disponible"; fi'
 Restart=always
 RestartSec=10
-StandardOutput=append:/var/log/palamos-dashboard/app.log
-StandardError=append:/var/log/palamos-dashboard/error.log
+StandardOutput=append:$USER_LOG_DIR/app.log
+StandardError=append:$USER_LOG_DIR/error.log
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 EOF
+chown $SERVICE_RUN_USER:$SERVICE_RUN_USER "$USER_UNIT_DIR/palamos-dashboard.service"
 
-# Recarrega systemd i habilita el servei
-echo "Habilitant servei..."
-systemctl daemon-reload
-systemctl enable palamos-dashboard.service
+if [ "$ENABLE_LINGER" = true ]; then
+    echo "Habilitant linger per a $SERVICE_RUN_USER (arrencarà encara sense login)..."
+    loginctl enable-linger "$SERVICE_RUN_USER" || echo "Avís: no s'ha pogut habilitar linger"
+fi
+
+sudo -u "$SERVICE_RUN_USER" systemctl --user daemon-reload
+sudo -u "$SERVICE_RUN_USER" systemctl --user enable palamos-dashboard.service
 
 if [ $? -eq 0 ]; then
-    echo "Servei creat correctament! Usuari d'execució: $SERVICE_RUN_USER"
+    echo "Servei d'usuari creat correctament per: $SERVICE_RUN_USER"
     echo "Creant servei addicional novnc-proxy (si existeix /home/super/noVNC/utils/novnc_proxy)..."
     if [ -x /home/super/noVNC/utils/novnc_proxy ]; then
         cat > /etc/systemd/system/novnc-proxy.service << NOVNC
@@ -189,25 +188,21 @@ NOVNC
         echo "No s'ha trobat /home/super/noVNC/utils/novnc_proxy. Ometent servei novnc-proxy."
     fi
     echo
-    echo "Per a iniciar el servei, executa:"
-        echo "sudo systemctl start palamos-dashboard"
-        if [ "$USE_EXISTING_USER" = true ]; then
-            echo
-            echo "Recorda: el servei s'executa com $SERVICE_RUN_USER. Ha de tenir sessió gràfica oberta per mostrar UI."
-            echo "Si no vols forçar DISPLAY=:0, edita el fitxer /etc/systemd/system/palamos-dashboard.service i ajusta 'Environment=DISPLAY='"
-        fi
+    echo "Com a $SERVICE_RUN_USER pots gestionar el servei així:"
+    echo "  systemctl --user start palamos-dashboard"
+    echo "  systemctl --user stop palamos-dashboard"
+    echo "  systemctl --user status palamos-dashboard"
+    echo "Logs: $USER_LOG_DIR (tail -f) o journalctl --user -u palamos-dashboard -f"
+    if [ "$ENABLE_LINGER" = true ]; then
+        echo "Linger actiu: arrencarà després del boot sense login."
+    else
+        echo "Sense linger: arrencarà després del login de l'usuari."
+    fi
     echo
-    echo "Per a aturar el servei, executa:"
-    echo "sudo systemctl stop palamos-dashboard"
-    echo
-    echo "Per a veure l'estat del servei:"
-    echo "sudo systemctl status palamos-dashboard"
-    echo
-    echo "Per a veure els logs:"
-    echo "sudo journalctl -u palamos-dashboard -f"
-    echo
-    echo "Per a deshabilitar el servei:"
-    echo "sudo systemctl disable palamos-dashboard"
+    echo "Deshabilitar servei (com a $SERVICE_RUN_USER):"
+    echo "  systemctl --user disable palamos-dashboard"
+    echo "Treure linger (root):"
+    echo "  loginctl disable-linger $SERVICE_RUN_USER"
 else
     echo "Error creant el servei systemd."
 fi
