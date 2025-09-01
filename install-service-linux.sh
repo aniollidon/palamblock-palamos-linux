@@ -71,6 +71,7 @@ cat > /etc/systemd/system/palamos-dashboard.service << EOF
 [Unit]
 Description=palam-dash Service
 After=network.target graphical.target
+Wants=network-online.target
 
 [Service]
 Type=simple
@@ -81,7 +82,8 @@ Environment=HOME=/var/lib/palamos-dashboard
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/\$SUDO_USER/.Xauthority
 WorkingDirectory=/opt/palamos-dashboard
-ExecStart=/opt/palamos-dashboard/palam-dash
+ExecStart=/opt/palamos-dashboard/run.sh
+ExecStartPre=/bin/sh -c 'if [ -n "${DISPLAY}" ] && [ ! -S "/tmp/.X11-unix/${DISPLAY#:}" ]; then echo "DISPLAY definit però no disponible"; fi'
 Restart=always
 RestartSec=10
 StandardOutput=append:/var/log/palamos-dashboard/app.log
