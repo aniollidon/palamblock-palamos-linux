@@ -33,12 +33,30 @@ else
     echo "Avís: No s'ha trobat cap fitxer .env ni env.example. Continuant sense configuració."
 fi
 
-# Crea l'usuari del servei
-echo "Creant usuari del servei..."
-useradd -r -s /bin/false palamos-dashboard 2>/dev/null || true
+# Usuari i HOME del servei
+SERVICE_USER="palamos-dashboard"
+SERVICE_HOME="/var/lib/$SERVICE_USER"
 
-# Canvia la propietat dels fitxers
-chown -R palamos-dashboard:palamos-dashboard /opt/palamos-dashboard
+echo "Creant / validant usuari del servei..."
+if id -u "$SERVICE_USER" >/dev/null 2>&1; then
+    # Si existeix però no té HOME, el creem
+    CURRENT_HOME=$(getent passwd "$SERVICE_USER" | cut -d: -f6)
+    if [ ! -d "$SERVICE_HOME" ]; then
+        mkdir -p "$SERVICE_HOME"
+    fi
+    if [ "$CURRENT_HOME" != "$SERVICE_HOME" ]; then
+        usermod -d "$SERVICE_HOME" "$SERVICE_USER"
+    fi
+else
+    useradd -r -d "$SERVICE_HOME" -s /usr/sbin/nologin -m "$SERVICE_USER"
+fi
+
+# Directori de cache fontconfig per evitar "Font config error: No writable cache directories"
+mkdir -p "$SERVICE_HOME/.cache/fontconfig"
+chown -R $SERVICE_USER:$SERVICE_USER "$SERVICE_HOME"
+
+# Canvia la propietat dels fitxers de l'aplicació
+chown -R $SERVICE_USER:$SERVICE_USER /opt/palamos-dashboard
 chmod +x /opt/palamos-dashboard/palam-dash
 
 # Directori de logs
@@ -58,6 +76,8 @@ After=network.target graphical.target
 Type=simple
 User=palamos-dashboard
 Group=palamos-dashboard
+Environment=XDG_CACHE_HOME=/var/lib/palamos-dashboard/.cache
+Environment=HOME=/var/lib/palamos-dashboard
 Environment=DISPLAY=:0
 Environment=XAUTHORITY=/home/\$SUDO_USER/.Xauthority
 WorkingDirectory=/opt/palamos-dashboard
