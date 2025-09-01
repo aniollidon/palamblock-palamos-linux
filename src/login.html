@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>PalamOS Login</title>
+    <style>
+        @import url("https://fonts.googleapis.com/css?family=Raleway:400,700");
+        *, *:before, *:after { box-sizing: border-box; }
+        body { min-height: 100vh; font-family: "Raleway", sans-serif; margin: 0; overflow: hidden; }
+        .container { position: absolute; width: 100%; height: 100%; overflow: hidden; }
+        .container:hover .top:before, .container:hover .top:after, .container:hover .bottom:before, .container:hover .bottom:after, .container:active .top:before, .container:active .top:after, .container:active .bottom:before, .container:active .bottom:after { margin-left: 200px; transform-origin: -200px 50%; transition-delay: 0s; }
+        .container:hover .center, .container:active .center { opacity: 1; transition-delay: 0.2s; }
+        .top:before, .top:after, .bottom:before, .bottom:after { content: ""; display: block; position: absolute; width: 200vmax; height: 200vmax; top: 50%; left: 50%; margin-top: -100vmax; transform-origin: 0 50%; transition: all 0.5s cubic-bezier(0.445, 0.05, 0, 1); z-index: 10; opacity: 0.65; transition-delay: 0.2s; }
+        .top:before { transform: rotate(45deg); background: #F6511D; }
+        .top:after { transform: rotate(135deg); background: #FFB400; }
+        .bottom:before { transform: rotate(-45deg); background: #00A6ED; }
+        .bottom:after { transform: rotate(-135deg); background: #7FB800; }
+        .center { position: absolute; width: 400px; height: 420px; top: 50%; left: 50%; margin-left: -200px; margin-top: -210px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; opacity: 1; color: #333; background: rgba(255, 255, 255, 0.9); border-radius: 10px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); }
+        .center h2 { margin: 0 0 20px 0; color: #333; text-align: center; }
+        .center input { width: 100%; padding: 15px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; font-family: inherit; font-size: 16px; }
+        .center input:focus { outline: none; border-color: #F6511D; box-shadow: 0 0 5px rgba(246, 81, 29, 0.3); }
+        #save { cursor: pointer; background-color: #F6511D; color: white; border: none; font-weight: bold; transition: background-color 0.3s; }
+        #save:hover { background-color: #d94a1a; }
+        #save:active { background-color: #b73b12; }
+        .error { color: #F6511D; font-size: 14px; margin-top: 10px; text-align: center; display: none; }
+        .success { color: #7FB800; font-size: 14px; margin-top: 10px; text-align: center; display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="top"></div>
+        <div class="bottom"></div>
+        <div class="center">
+            <h2>Autentifica aquest ordinador</h2>
+            <input type="text" placeholder="Nom d'usuari" id="username" />
+            <input type="password" placeholder="Contrasenya" id="password" />
+            <input type="submit" value="Registra" id="save" />
+            <div id="error" class="error"></div>
+            <div id="success" class="success"></div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+
+        function showError(message) {
+            const errorEl = document.getElementById('error');
+            const successEl = document.getElementById('success');
+            errorEl.textContent = message;
+            errorEl.style.display = 'block';
+            successEl.style.display = 'none';
+        }
+
+        function showSuccess(message) {
+            const errorEl = document.getElementById('error');
+            const successEl = document.getElementById('success');
+            successEl.textContent = message;
+            successEl.style.display = 'block';
+            errorEl.style.display = 'none';
+        }
+
+        async function saveUser() {
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (username === '' || password === '') {
+                showError("Cal especificar usuari i contrasenya");
+                return;
+            }
+
+            try {
+                // 1) Valida contra el servidor
+                const validation = await ipcRenderer.invoke('validate-credentials', { username, password });
+                if (!validation || !validation.ok) {
+                    if (validation && validation.reason === 'invalid') {
+                        showError("Credencials incorrectes");
+                    } else if (validation && validation.reason === 'server') {
+                        showError("Error del servidor d'autenticació");
+                    } else {
+                        showError("No s'ha pogut validar l'usuari (xarxa)");
+                    }
+                    return;
+                }
+
+                // 2) Desa l'usuari si la validació és correcta
+                const saved = await ipcRenderer.invoke('save-username', username);
+                if (!saved || !saved.success) {
+                    showError("Error guardant l'usuari");
+                    return;
+                }
+
+                showSuccess("Usuari registrat correctament");
+                setTimeout(() => {
+                    ipcRenderer.invoke('login-completed');
+                }, 1000);
+            } catch (e) {
+                showError("Error: " + (e && e.message ? e.message : 'desconegut'));
+            }
+        }
+
+        document.getElementById('save').addEventListener('click', saveUser);
+        document.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveUser(); });
+        document.getElementById('username').focus();
+    </script>
+</body>
+</html>

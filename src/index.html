@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PalamOS Debug</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #667eea;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .info {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .warning {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #5a6fd8;
+        }
+        .log {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PalamOS Dashboard - Mode Debug</h1>
+        
+        <div class="status">
+            <strong>Estat:</strong> Aplicació executant-se en segon pla
+        </div>
+        
+        <div class="info">
+            <strong>Informació:</strong> Aquesta finestra només és visible en mode debug. 
+            L'aplicació principal s'executa en segon pla i es connecta al servidor WebSocket.
+        </div>
+        
+        <div class="warning">
+            <strong>Recordatori:</strong> L'usuari no pot tancar aquesta aplicació. 
+            Només el servidor pot controlar quan obrir/tancar el display.
+        </div>
+        
+        <div style="text-align: center; margin: 20px 0;">
+            <button class="button" onclick="testConnection()">Provar Connexió</button>
+            <button class="button" onclick="getSystemInfo()">Info del Sistema</button>
+            <button class="button" onclick="clearLog()">Netejar Log</button>
+        </div>
+        
+        <div>
+            <strong>Log d'activitat:</strong>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const { ipcRenderer } = require('electron');
+        
+        function log(message) {
+            const logElement = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.innerHTML += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        async function testConnection() {
+            try {
+                const ip = await ipcRenderer.invoke('get-ip');
+                const username = await ipcRenderer.invoke('get-username');
+                log(`Connexió OK - IP: ${ip}, Usuari: ${username}`);
+            } catch (error) {
+                log(`Error de connexió: ${error.message}`);
+            }
+        }
+        
+        async function getSystemInfo() {
+            try {
+                const ip = await ipcRenderer.invoke('get-ip');
+                const username = await ipcRenderer.invoke('get-username');
+                log(`Sistema - IP: ${ip}, Usuari: ${username}`);
+            } catch (error) {
+                log(`Error obtenint info: ${error.message}`);
+            }
+        }
+        
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+        
+        // Inicialització
+        log('Pàgina de debug carregada');
+        log('L\'aplicació està executant-se en segon pla');
+        
+        // Event listeners per a missatges del procés principal
+        ipcRenderer.on('log-message', (event, message) => {
+            log(`Main: ${message}`);
+        });
+    </script>
+</body>
+</html>

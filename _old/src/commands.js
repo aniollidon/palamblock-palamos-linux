@@ -14,5 +14,3 @@ const linux = {
 }
 
 module.exports = {linux, linux_sudo};
-
-
