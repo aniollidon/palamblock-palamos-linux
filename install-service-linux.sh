@@ -1,6 +1,7 @@
 #!/bin/bash
 
 echo "Instal·lant palam-dash com a servei systemd en Linux..."
+echo "Opció: --as-user <usuari_escriptori> per executar el servei amb un usuari existent (p.ex. alumne)"
 echo
 
 # Comprova si l'aplicació està compilada
@@ -14,6 +15,24 @@ if [ "$EUID" -ne 0 ]; then
     echo "Error: Aquest script ha de ser executat com a root (sudo)"
     exit 1
 fi
+
+# Paràmetres
+SERVICE_RUN_USER="palamos-dashboard"   # Usuari per defecte (de sistema)
+USE_EXISTING_USER=false
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --as-user)
+            shift
+            if [ -z "${1:-}" ]; then echo "Error: falta valor per --as-user"; exit 1; fi
+            SERVICE_RUN_USER="$1"
+            USE_EXISTING_USER=true
+            ;;
+        *)
+            echo "Argument desconegut: $1"; exit 1;;
+    esac
+    shift
+done
 
 # Crea el directori del servei
 mkdir -p /opt/palamos-dashboard
@@ -33,31 +52,32 @@ else
     echo "Avís: No s'ha trobat cap fitxer .env ni env.example. Continuant sense configuració."
 fi
 
-# Usuari i HOME del servei
-SERVICE_USER="palamos-dashboard"
-SERVICE_HOME="/var/lib/$SERVICE_USER"
-
-echo "Creant / validant usuari del servei..."
-if id -u "$SERVICE_USER" >/dev/null 2>&1; then
-    # Si existeix però no té HOME, el creem
-    CURRENT_HOME=$(getent passwd "$SERVICE_USER" | cut -d: -f6)
-    if [ ! -d "$SERVICE_HOME" ]; then
-        mkdir -p "$SERVICE_HOME"
-    fi
-    if [ "$CURRENT_HOME" != "$SERVICE_HOME" ]; then
-        usermod -d "$SERVICE_HOME" "$SERVICE_USER"
-    fi
+if [ "$USE_EXISTING_USER" = true ]; then
+    # Executarem amb un usuari d'escriptori existent
+    if ! id -u "$SERVICE_RUN_USER" >/dev/null 2>&1; then
+        echo "Error: l'usuari $SERVICE_RUN_USER no existeix"; exit 1; fi
+    echo "Configurant servei per executar-se com a usuari existent: $SERVICE_RUN_USER"
+    # Només assegurem permisos de lectura/execució
+    chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER /opt/palamos-dashboard
+    chmod +x /opt/palamos-dashboard/palam-dash
+    SERVICE_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
 else
-    useradd -r -d "$SERVICE_HOME" -s /usr/sbin/nologin -m "$SERVICE_USER"
+    # Usuari de sistema aïllat
+    SERVICE_USER="$SERVICE_RUN_USER"
+    SERVICE_HOME="/var/lib/$SERVICE_USER"
+    echo "Creant / validant usuari de sistema: $SERVICE_USER"
+    if id -u "$SERVICE_USER" >/dev/null 2>&1; then
+            CURRENT_HOME=$(getent passwd "$SERVICE_USER" | cut -d: -f6)
+            [ ! -d "$SERVICE_HOME" ] && mkdir -p "$SERVICE_HOME"
+            [ "$CURRENT_HOME" != "$SERVICE_HOME" ] && usermod -d "$SERVICE_HOME" "$SERVICE_USER"
+    else
+            useradd -r -d "$SERVICE_HOME" -s /usr/sbin/nologin -m "$SERVICE_USER"
+    fi
+    mkdir -p "$SERVICE_HOME/.cache/fontconfig"
+    chown -R $SERVICE_USER:$SERVICE_USER "$SERVICE_HOME"
+    chown -R $SERVICE_USER:$SERVICE_USER /opt/palamos-dashboard
+    chmod +x /opt/palamos-dashboard/palam-dash
 fi
-
-# Directori de cache fontconfig per evitar "Font config error: No writable cache directories"
-mkdir -p "$SERVICE_HOME/.cache/fontconfig"
-chown -R $SERVICE_USER:$SERVICE_USER "$SERVICE_HOME"
-
-# Canvia la propietat dels fitxers de l'aplicació
-chown -R $SERVICE_USER:$SERVICE_USER /opt/palamos-dashboard
-chmod +x /opt/palamos-dashboard/palam-dash
 
 # Directori de logs
 LOG_DIR="/var/log/palamos-dashboard"
@@ -75,12 +95,22 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=palamos-dashboard
-Group=palamos-dashboard
-Environment=XDG_CACHE_HOME=/var/lib/palamos-dashboard/.cache
-Environment=HOME=/var/lib/palamos-dashboard
+User=$SERVICE_RUN_USER
+Group=$SERVICE_RUN_USER
 Environment=DISPLAY=:0
-Environment=XAUTHORITY=/home/\$SUDO_USER/.Xauthority
+EOF
+
+# Si usem usuari de sistema afegim caches pròpies; si és existent confiem en el seu HOME
+if [ "$USE_EXISTING_USER" = true ]; then
+    : # No fem res extra
+else
+cat >> /etc/systemd/system/palamos-dashboard.service << EOF
+Environment=XDG_CACHE_HOME=$SERVICE_HOME/.cache
+Environment=HOME=$SERVICE_HOME
+EOF
+fi
+
+cat >> /etc/systemd/system/palamos-dashboard.service << EOF
 WorkingDirectory=/opt/palamos-dashboard
 ExecStart=/opt/palamos-dashboard/run.sh
 ExecStartPre=/bin/sh -c 'if [ -n "${DISPLAY}" ] && [ ! -S "/tmp/.X11-unix/${DISPLAY#:}" ]; then echo "DISPLAY definit però no disponible"; fi'
@@ -99,10 +129,15 @@ systemctl daemon-reload
 systemctl enable palamos-dashboard.service
 
 if [ $? -eq 0 ]; then
-    echo "Servei creat correctament!"
+    echo "Servei creat correctament! Usuari d'execució: $SERVICE_RUN_USER"
     echo
     echo "Per a iniciar el servei, executa:"
-    echo "sudo systemctl start palamos-dashboard"
+        echo "sudo systemctl start palamos-dashboard"
+        if [ "$USE_EXISTING_USER" = true ]; then
+            echo
+            echo "Recorda: el servei s'executa com $SERVICE_RUN_USER. Ha de tenir sessió gràfica oberta per mostrar UI."
+            echo "Si no vols forçar DISPLAY=:0, edita el fitxer /etc/systemd/system/palamos-dashboard.service i ajusta 'Environment=DISPLAY='"
+        fi
     echo
     echo "Per a aturar el servei, executa:"
     echo "sudo systemctl stop palamos-dashboard"
