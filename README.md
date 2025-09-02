@@ -1,186 +1,71 @@
 # PalamOS Dashboard - Aplicació Electron
 
-Aplicació Electron que funciona com a servei de Linux per a PalamOS, connectant-se amb un servidor WebSocket i mostrant una pàgina de dashboard a pantalla completa controlada pel servidor.
-
-## Característiques
-
-- ✅ **Servei de Linux**: S'executa automàticament com a servei systemd
-- ✅ **Connexió WebSocket**: Es connecta al servidor PalamBlock
-- ✅ **Detecció d'IP**: Detecta i envia canvis d'IP al servidor
-- ✅ **Control remot**: El servidor pot obrir/tancar el display
-- ✅ **Pantalla completa**: El display s'obre a pantalla completa
-- ✅ **Seguretat**: L'usuari no pot tancar l'aplicació
-- ✅ **Control de teclat/rató**: El servidor pot desactivar el control
-
-## Instal·lació
-
-### Prerequisits
-
-- Ubuntu 20.04+ o distribució Linux compatible
-- Node.js 18+ i npm
-- X11 o Wayland
-
-### Descarregar dependències
-
-```bash
-npm install
-```
+Aplicació Electron que funciona com a servei (unitat d'usuari systemd) per a PalamOS, connectant-se amb un servidor WebSocket i mostrant un dashboard a pantalla completa controlat remotament.
 
 ### Configuració
 
 1. Copia `env.example` a `.env`
 2. Configura les variables d'entorn:
-   ```env
-   SERVER_PALAMBLOCK=ws://localhost:3000
-   IP_CHECK_INTERVAL=30
-   IP_SEND_ALWAYS_CHECK=10
-   ```
 
-### Desenvolupament
+#### Configuració del fitxer sudoers
 
 ```bash
-# Executar en mode desenvolupament
-npm run dev
-
-# Executar normal
-npm start
+alumne ALL=(ALL) /sbin/shutdown, /sbin/reboot, /sbin/poweroff, /sbin/halt
+alumne ALL=(ALL) /opt/palamos-dashboard/scripts/*
 ```
 
 ### Compilar
 
 ```bash
-# Compilar per a Linux
 npm run build
 ```
 
-### Instal·lar com a servei
+### Instal·lar com a servei (unitat d'usuari)
 
-1. Instal·la les dependències del sistema: `./install-dependencies-ubuntu.sh`
-2. Compila l'aplicació: `npm run build`
-3. Executa `./install-service-linux.sh` com a root (sudo)
-4. El servei s'iniciarà automàticament
+El servei ara és EXCLUSIVAMENT d'usuari (no sistema). Necessites indicar quin usuari l'executarà.
 
-### Instal·lar com a auto-inici
+1. Instal·la dependències: `./install-dependencies-ubuntu.sh`
+2. Compila: `npm run build`
+3. Instal·la la unitat (com a root perquè copia a `/opt`):
+   ```bash
+   sudo ./install-service-linux.sh --user <usuari_escriptori> --display :0
+   ```
+4. Si durant la instal·lació encara no hi havia sessió gràfica d'aquest usuari veuràs estat "pendent".
+5. Després QUE L'USUARI FACI LOGIN (mateixa sessió):
+   ```bash
+   systemctl --user daemon-reload
+   systemctl --user enable --now palamos-dashboard
+   ```
+6. En reinicis futurs s'activarà automàticament en iniciar sessió.
 
-1. Instal·la les dependències del sistema: `./install-dependencies-ubuntu.sh`
-2. Compila l'aplicació: `npm run build`
-3. Executa `./install-startup-linux.sh`
-4. L'aplicació s'iniciarà automàticament al fer login
+Opcional: ajusta `--display :1` si uses un altre servidor X.
 
-### Instal·lació ràpida amb Makefile
+### informació del servei
 
-```bash
-# Instal·lació completa (dependències + build + servei)
-make install
+1. Estat: `systemctl --user status palamos-dashboard`
+2. Logs: `journalctl --user -u palamos-dashboard -f`
+3. Fitxers logs: `~/.local/share/palamamos-dashboard/logs/`
 
-# O pas a pas:
-make deps          # Instal·la dependències
-make build         # Compila l'aplicació
-make service       # Instal·la com a servei
-make startup       # O instal·la com a auto-inici
+   ```
+   ~/.local/share/palamamos-dashboard/logs/app.log
+   ~/.local/share/palamamos-dashboard/logs/error.log
+   ```
 
-# Gestió del servei:
-make start         # Inicia el servei
-make stop          # Atura el servei
-make restart       # Reinicia el servei
-make status        # Mostra l'estat
-make logs          # Mostra els logs
-make uninstall     # Desinstal·la completament
-```
+4. Journal (temps real)
 
-## Ús
+   ```
+   journalctl --user -u palamos-dashboard -f
+   ```
 
-### Com a servei
+5. Estat pendent després instal·lació: (després login) `systemctl --user enable --now palamos-dashboard`
+6. "Failed to connect to bus": l'usuari no té sessió systemd (fes login gràfic o TTY normal).
+7. Reinici ràpid: `systemctl --user restart palamos-dashboard`
+8. Regenerar unitat: tornar a executar script d'instal·lació.
 
-L'aplicació s'executa automàticament com a servei systemd de Linux i:
+## Servei addicional noVNC
 
-1. Es connecta al servidor WebSocket
-2. Envia la IP local i informació del sistema
-3. Detecta canvis d'IP i els notifica al servidor
-4. Espera ordres del servidor per a obrir/tancar el display
-
-### Comandes del servidor
-
-- `open-display`: Obre la finestra de dashboard a pantalla completa
-- `close-display`: Tanca la finestra de dashboard
-- `execute`: Executa comandes al sistema (futur)
-
-### Control remot
-
-El servidor pot:
-- Obrir/tancar el display
-- Rebre informació del sistema
-- Controlar l'estat de l'aplicació
-
-## Estructura del projecte
+Si existeix `/home/super/noVNC/utils/novnc_proxy` l'script crea `novnc-proxy.service` (servei de sistema) exposant VNC via WebSocket :6080. Per desactivar:
 
 ```
-palamDash/
-├── src/
-│   ├── main.js          # Procés principal d'Electron
-│   ├── display.html     # Pàgina de dashboard
-│   ├── display.js       # Lògica del dashboard
-│   └── index.html       # Pàgina de debug
-├── assets/              # Icones i recursos
-├── package.json         # Dependències i scripts
-├── env.example          # Variables d'entorn d'exemple
-├── Makefile             # Comandes d'instal·lació i gestió
-├── install-dependencies-ubuntu.sh  # Script d'instal·lació de dependències
-├── install-service-linux.sh        # Script d'instal·lació del servei systemd
-├── install-startup-linux.sh        # Script d'instal·lació d'auto-inici
-├── ecosystem.config.js  # Configuració PM2
-└── README.md           # Aquest fitxer
+sudo systemctl disable --now novnc-proxy
 ```
-
-## Seguretat
-
-- L'usuari no pot tancar l'aplicació
-- Les tecles de sortida estan desactivades
-- El control del sistema està limitat
-- Només el servidor pot controlar l'aplicació
-
-## Troubleshooting
-
-### L'aplicació no s'executa
-
-1. Comprova que Node.js està instal·lat
-2. Executa `npm install` per a instal·lar dependències
-3. Comprova la configuració del `.env`
-
-### Problemes de connexió
-
-1. Verifica que el servidor està executant-se
-2. Comprova la URL del servidor al `.env`
-3. Verifica que el firewall no bloqueja la connexió
-
-### Problemes del servei
-
-1. Executa `sudo systemctl status palamos-dashboard` per a veure l'estat
-2. Comprova els logs amb `sudo journalctl -u palamos-dashboard -f`
-3. Reinstal·la el servei amb `./install-service-linux.sh`
-
-## Desenvolupament
-
-### Afegir noves funcionalitats
-
-1. Modifica `src/main.js` per a la lògica principal
-2. Actualitza `src/display.html` per a la interfície
-3. Afegeix noves comandes al sistema de WebSocket
-
-### Testing
-
-```bash
-# Mode desenvolupament amb DevTools
-npm run dev
-
-# Mode normal
-npm start
-```
-
-## Llicència
-
-Aquest projecte està basat en [palamblock-palamos-linux](https://github.com/aniollidon/palamblock-palamos-linux) i adaptat per a Electron en Linux.
-
-## Suport
-
-Per a suport tècnic o preguntes, contacta amb l'equip de desenvolupament de PalamOS.

@@ -4,11 +4,10 @@ echo "Instal·lant palam-dash com a servei d'usuari systemd (obligatori --user).
 echo "Opcions:"
 echo "  --user <usuari>          (REQUERIT) Usuari existent que executarà el servei (unitat a ~/.config/systemd/user)"
 echo "  --display <:N>           Forçar DISPLAY (per defecte :1)"
-echo "  --wait-display <s>       (Opcional) Espera fins a <s> segons a que el socket X11 existeixi (defecte 30)"
 echo
 echo "Exemples:"
 echo "  sudo ./install-service-linux.sh --user alumne --display :0"
-echo "  sudo ./install-service-linux.sh --user alumne --display :0 --wait-display 60"
+echo "  sudo ./install-service-linux.sh --user alumne --display :0"
 echo
 
 # Comprova si l'aplicació està compilada
@@ -26,7 +25,6 @@ fi
 # Paràmetres
 SERVICE_RUN_USER=""        # Obligatori amb --user
 DISPLAY_VALUE=":1"         # DISPLAY per defecte
-WAIT_DISPLAY_SECS=10        # Temps d'espera per socket X11
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -41,11 +39,6 @@ while [ $# -gt 0 ]; do
             shift
             if [ -z "${1:-}" ]; then echo "Error: falta valor per --display"; exit 1; fi
             DISPLAY_VALUE="$1"
-            ;;
-        --wait-display)
-            shift
-            if [ -z "${1:-}" ]; then echo "Error: falta valor per --wait-display"; exit 1; fi
-            WAIT_DISPLAY_SECS="$1"
             ;;
         *)
             echo "Argument desconegut: $1"; exit 1;;
@@ -62,12 +55,35 @@ if ! id -u "$SERVICE_RUN_USER" >/dev/null 2>&1; then
     echo "Error: l'usuari $SERVICE_RUN_USER no existeix"; exit 1
 fi
 
+# Ho parem tot i esborrem directoris
+echo "Aturant serveis anteriors i netejant directoris..."
+if [ -d "/opt/palamos-dashboard" ]; then
+    # Aturem el servei com a l'usuari especificat
+    UID_NUM=$(id -u "$SERVICE_RUN_USER")
+    USER_RUNTIME_DIR="/run/user/$UID_NUM"
+    
+    if [ -d "$USER_RUNTIME_DIR" ] && systemctl --user -M "$SERVICE_RUN_USER@" status palamos-dashboard.service &>/dev/null; then
+        echo "Aturant servei existent per a l'usuari $SERVICE_RUN_USER..."
+        systemctl --user -M "$SERVICE_RUN_USER@" stop palamos-dashboard.service
+    else
+        echo "No s'ha trobat cap servei actiu per a l'usuari $SERVICE_RUN_USER o no té sessió activa."
+    fi
+    
+    # Esborrem el directori
+    echo "Esborrant directori d'instal·lació anterior..."
+    rm -rf /opt/palamos-dashboard
+fi
+
 # Crea el directori del servei
 mkdir -p /opt/palamos-dashboard
 
 # Copia l'aplicació
 echo "Copiant aplicació..."
 cp -r dist/linux-unpacked/* /opt/palamos-dashboard/
+
+# Copia els scripts
+echo "Copia els scripts..."
+cp -r scripts/* /opt/palamos-dashboard/scripts/
 
 # Copia / crea run.sh i fixa DISPLAY
 EXEC_START="/opt/palamos-dashboard/run.sh"
@@ -94,23 +110,6 @@ RSEOF
 fi
 chmod +x /opt/palamos-dashboard/run.sh
 
-# Script previ per esperar DISPLAY (evitem quoting complex a systemd unit)
-cat > /opt/palamos-dashboard/prestart-wait-display.sh << PWDEOF
-#!/bin/bash
-LIMIT=${WAIT_DISPLAY_SECS}
-echo "[prestart] Esperant socket X11 per DISPLAY=$DISPLAY (fins a ${LIMIT}s)" >&2
-for i in $(seq 1 ${WAIT_DISPLAY_SECS}); do
-    SOCK="/tmp/.X11-unix/${DISPLAY#:}"
-    if [ -S "$SOCK" ]; then
-        echo "[prestart] Socket X11 disponible: $SOCK" >&2
-        exit 0
-    fi
-    sleep 1
-done
-echo "[prestart] NO s'ha trobat socket X11 després de ${LIMIT}s" >&2
-exit 0  # No bloquegem l'arrencada; només avís
-PWDEOF
-chmod +x /opt/palamos-dashboard/prestart-wait-display.sh
 
 # Crea l'arxiu .env al directori del servei
 echo "Copiant configuració (.env)..."
@@ -149,7 +148,6 @@ Wants=network-online.target
 Type=simple
 Environment=DISPLAY=$DISPLAY_VALUE
 WorkingDirectory=/opt/palamos-dashboard
-ExecStartPre=/opt/palamos-dashboard/prestart-wait-display.sh
 ExecStart=/opt/palamos-dashboard/run.sh
 Restart=always
 RestartSec=10

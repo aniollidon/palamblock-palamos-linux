@@ -3,7 +3,7 @@ set -euo pipefail
 
 APP="/opt/palamos-dashboard/palam-dash"
 DISPLAY_VAL=":1"
-WAIT_SECS=15
+WAIT_SECS=5
 
 log(){ echo "[run.sh] $*"; }
 
