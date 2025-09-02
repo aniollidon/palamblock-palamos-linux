@@ -133,7 +133,7 @@ Environment=DISPLAY=$DISPLAY_VALUE
 WorkingDirectory=/opt/palamos-dashboard
 ExecStartPre=/bin/sh -c 'echo "[palam-dash] Esperant DISPLAY $DISPLAY durant fins a ${WAIT_DISPLAY_SECS}s"; \
  for i in $(seq 1 ${WAIT_DISPLAY_SECS}); do [ -S /tmp/.X11-unix/${DISPLAY#:} ] && echo "Socket X11 disponible" && exit 0; sleep 1; done; \
- echo "No s\'ha trobat socket X11 /tmp/.X11-unix/${DISPLAY#:} després de ${WAIT_DISPLAY_SECS}s" >&2'
+ echo "No sha trobat socket X11 /tmp/.X11-unix/${DISPLAY#:} després de ${WAIT_DISPLAY_SECS}s" >&2'
 ExecStart=/opt/palamos-dashboard/run.sh
 Restart=always
 RestartSec=10
