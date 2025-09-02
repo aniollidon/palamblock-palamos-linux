@@ -94,6 +94,24 @@ RSEOF
 fi
 chmod +x /opt/palamos-dashboard/run.sh
 
+# Script previ per esperar DISPLAY (evitem quoting complex a systemd unit)
+cat > /opt/palamos-dashboard/prestart-wait-display.sh << PWDEOF
+#!/bin/bash
+LIMIT=${WAIT_DISPLAY_SECS}
+echo "[prestart] Esperant socket X11 per DISPLAY=$DISPLAY (fins a ${LIMIT}s)" >&2
+for i in $(seq 1 ${WAIT_DISPLAY_SECS}); do
+    SOCK="/tmp/.X11-unix/${DISPLAY#:}"
+    if [ -S "$SOCK" ]; then
+        echo "[prestart] Socket X11 disponible: $SOCK" >&2
+        exit 0
+    fi
+    sleep 1
+done
+echo "[prestart] NO s'ha trobat socket X11 després de ${LIMIT}s" >&2
+exit 0  # No bloquegem l'arrencada; només avís
+PWDEOF
+chmod +x /opt/palamos-dashboard/prestart-wait-display.sh
+
 # Crea l'arxiu .env al directori del servei
 echo "Copiant configuració (.env)..."
 if [ -f ".env" ]; then
@@ -131,9 +149,7 @@ Wants=network-online.target
 Type=simple
 Environment=DISPLAY=$DISPLAY_VALUE
 WorkingDirectory=/opt/palamos-dashboard
-ExecStartPre=/bin/sh -c 'echo "[palam-dash] Esperant DISPLAY $DISPLAY durant fins a ${WAIT_DISPLAY_SECS}s"; \
- for i in $(seq 1 ${WAIT_DISPLAY_SECS}); do [ -S /tmp/.X11-unix/${DISPLAY#:} ] && echo "Socket X11 disponible" && exit 0; sleep 1; done; \
- echo "No sha trobat socket X11 /tmp/.X11-unix/${DISPLAY#:} després de ${WAIT_DISPLAY_SECS}s" >&2'
+ExecStartPre=/opt/palamos-dashboard/prestart-wait-display.sh
 ExecStart=/opt/palamos-dashboard/run.sh
 Restart=always
 RestartSec=10
