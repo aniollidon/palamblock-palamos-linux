@@ -14,6 +14,21 @@ const { ipcRenderer } = require("electron");
   let actualRoom = roomName; // La room real on estem connectats (pot ser diferent si som redirigits)
   let hasEverConnected = false; // Per saber si és una reconnexió
   let shouldRejoin = false; // Marquem que cal tornar a enviar viewer-join
+  let reloadScheduled = false; // Per evitar múltiples recàrregues simultànies
+
+  function scheduleReload(delay = 5000) {
+    if (reloadScheduled) return;
+    reloadScheduled = true;
+    console.log(
+      `♻️ Recarregant la pàgina en ${delay} ms per recuperar la connexió WebRTC`
+    );
+    showMessage(
+      `Error de connexió. Reintentant en ${Math.round(delay / 1000)}s...`
+    );
+    setTimeout(() => {
+      location.reload();
+    }, delay);
+  }
 
   // Inicialització
   try {
@@ -126,7 +141,8 @@ const { ipcRenderer } = require("electron");
         pc.connectionState === "closed"
       ) {
         cleanupPeer();
-        showMessage("Connexió perduda. Esperant emissió...");
+        showMessage("Connexió perduda. Reintentant en 5s...");
+        scheduleReload();
       } else if (pc.connectionState === "connected") {
         hideMessage();
       }
@@ -228,7 +244,8 @@ const { ipcRenderer } = require("electron");
       } catch (error) {
         console.error("Error en la negociació WebRTC:", error);
         hideMessage();
-        showMessage("Error en la connexió. Esperant emissió...");
+        showMessage("Error en la connexió. Reintentant en 5s...");
+        scheduleReload();
       }
     });
 
@@ -241,7 +258,8 @@ const { ipcRenderer } = require("electron");
       } catch (error) {
         console.error("Error setting remote description:", error);
         hideMessage();
-        showMessage("Error en la connexió. Esperant emissió...");
+        showMessage("Error en la connexió. Reintentant en 5s...");
+        scheduleReload();
       }
     });
 
