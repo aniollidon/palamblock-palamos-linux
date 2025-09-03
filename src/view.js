@@ -14,79 +14,6 @@ const { ipcRenderer } = require("electron");
   let actualRoom = roomName; // La room real on estem connectats (pot ser diferent si som redirigits)
   let hasEverConnected = false; // Per saber si és una reconnexió
   let shouldRejoin = false; // Marquem que cal tornar a enviar viewer-join
-  let isNegotiating = false; // Evitar negociacions simultànies
-  let lastRecoveryAttempt = 0;
-  const RECOVERY_COOLDOWN_MS = 1500; // ms entre intents de recuperació
-
-  function safeCreateOfferAndSend() {
-    if (isNegotiating) return;
-    isNegotiating = true;
-    try {
-      const peer = ensurePeer();
-      peer
-        .createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true })
-        .then((o) => peer.setLocalDescription(o))
-        .then(() => {
-          console.log("📤 (recover) Enviant viewer-offer directe");
-          socket.emit("viewer-offer", {
-            room: roomName,
-            sdp: peer.localDescription,
-          });
-          setTimeout(() => {
-            isNegotiating = false;
-          }, 5000);
-        })
-        .catch((e) => {
-          console.warn("Error createOffer recover:", e);
-          isNegotiating = false;
-        });
-    } catch (e) {
-      console.warn("Error inici negociació recover:", e);
-      isNegotiating = false;
-    }
-  }
-
-  function queryAndRestoreState() {
-    if (!socket || socket.disconnected) return;
-    const now = Date.now();
-    if (now - lastRecoveryAttempt < RECOVERY_COOLDOWN_MS) return;
-    lastRecoveryAttempt = now;
-    console.log("🔍 (recover) cast-active-query", roomName);
-    socket.emit("cast-active-query", { alumne: roomName }, (res) => {
-      if (!res || !res.active) {
-        console.log("🔍 (recover) cap emissió activa");
-        return;
-      }
-      console.log("🔍 (recover) estat actiu:", res);
-      if (res.mode === "url") {
-        cleanupPeer();
-        if (frame) {
-          let sandbox = "allow-scripts allow-same-origin";
-          if (res.interactive) sandbox += " allow-forms allow-pointer-lock";
-          frame.setAttribute("sandbox", sandbox);
-          frame.src = res.url || "about:blank";
-          frame.classList.remove("hidden");
-          frame.style.pointerEvents = res.interactive ? "auto" : "none";
-          frame.setAttribute("tabindex", res.interactive ? "0" : "-1");
-        }
-        if (player) {
-          player.classList.add("hidden");
-          try {
-            player.pause();
-          } catch {}
-          player.srcObject = null;
-        }
-        currentMode = "url";
-        hideMessage();
-        isNegotiating = false;
-      } else if (res.mode === "webrtc") {
-        currentMode = "webrtc";
-        showMessage("Negociant emissió...");
-        cleanupPeer();
-        safeCreateOfferAndSend();
-      }
-    });
-  }
 
   // Inicialització
   try {
@@ -200,10 +127,8 @@ const { ipcRenderer } = require("electron");
       ) {
         cleanupPeer();
         showMessage("Connexió perduda. Esperant emissió...");
-        setTimeout(queryAndRestoreState, 800);
       } else if (pc.connectionState === "connected") {
         hideMessage();
-        isNegotiating = false;
       }
     };
 
@@ -235,8 +160,6 @@ const { ipcRenderer } = require("electron");
     scheduleHideCursor();
     socket.emit("viewer-join", { room: roomName });
     showMessage("Connectant a la sala...");
-    // Intent ràpid de recuperar estat si la sessió ja era activa
-    setTimeout(queryAndRestoreState, 350);
   }
 
   function setupSocketEvents() {
@@ -256,7 +179,6 @@ const { ipcRenderer } = require("electron");
           console.log("🔁 Reenviant viewer-join després de reconnexió");
           socket.emit("viewer-join", { room: roomName });
           showMessage("Reconnectat. Esperant emissió...");
-          setTimeout(queryAndRestoreState, 400);
           // Si ja hi ha broadcaster, el servidor ens enviarà els events pertinents
         }
       }
@@ -276,7 +198,6 @@ const { ipcRenderer } = require("electron");
     socket.on("broadcaster-available", async () => {
       console.log("✅ Broadcaster disponible!");
       showMessage("Emissor disponible. Negociant...");
-      isNegotiating = false; // reset
       // Canvia a mode WebRTC
       if (frame) {
         frame.classList.add("hidden");
@@ -297,20 +218,17 @@ const { ipcRenderer } = require("electron");
           room: roomName,
           sdp: peer.localDescription,
         });
-        isNegotiating = true;
 
         // Timeout per amagar el missatge si la negociació es queda penjada
         setTimeout(() => {
           if (currentMode === "webrtc" && !mediaStream) {
             hideMessage();
-            isNegotiating = false;
           }
         }, 5000); // 5 segons
       } catch (error) {
         console.error("Error en la negociació WebRTC:", error);
         hideMessage();
         showMessage("Error en la connexió. Esperant emissió...");
-        isNegotiating = false;
       }
     });
 
@@ -347,7 +265,6 @@ const { ipcRenderer } = require("electron");
       player.classList.remove("hidden");
       currentMode = null;
       showMessage("No hi ha emissió ara mateix. Esperant que torni...");
-      setTimeout(queryAndRestoreState, 1200);
     });
 
     // Nou: suport per compartició de URL
@@ -378,7 +295,6 @@ const { ipcRenderer } = require("electron");
       }
       hideMessage();
       currentMode = "url";
-      isNegotiating = false;
     });
   }
 
