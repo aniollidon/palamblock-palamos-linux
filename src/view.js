@@ -12,6 +12,8 @@ const { ipcRenderer } = require("electron");
   let hideCursorTimer = null;
   let currentMode = null; // 'webrtc' | 'url' | null
   let actualRoom = roomName; // La room real on estem connectats (pot ser diferent si som redirigits)
+  let hasEverConnected = false; // Per saber si és una reconnexió
+  let shouldRejoin = false; // Marquem que cal tornar a enviar viewer-join
 
   // Inicialització
   try {
@@ -164,9 +166,22 @@ const { ipcRenderer } = require("electron");
     console.log("🔌 Configurant events de socket...");
 
     socket.on("connect", () => {
-      console.log("✅ Socket connectat!");
+      const first = !hasEverConnected;
+      hasEverConnected = true;
+      console.log("✅ Socket connectat!", first ? "(inicial)" : "(reconnexió)");
       console.log("  - Socket ID:", socket.id);
       console.log("  - Room Name:", roomName);
+      // Amaga qualsevol missatge d'error antic
+      hideMessage();
+      // Si és una reconnexió, tornem a unir-nos a la sala
+      if (!first) {
+        if (roomName) {
+          console.log("🔁 Reenviant viewer-join després de reconnexió");
+          socket.emit("viewer-join", { room: roomName });
+          showMessage("Reconnectat. Esperant emissió...");
+          // Si ja hi ha broadcaster, el servidor ens enviarà els events pertinents
+        }
+      }
     });
 
     socket.on("connect_error", (error) => {
@@ -176,7 +191,8 @@ const { ipcRenderer } = require("electron");
 
     socket.on("disconnect", (reason) => {
       console.log("🔌 Socket desconnectat:", reason);
-      showMessage("Desconnectat del servidor");
+      showMessage("Desconnectat. Reconnectant...");
+      shouldRejoin = true;
     });
 
     socket.on("broadcaster-available", async () => {
