@@ -80,24 +80,10 @@ const { ipcRenderer } = require("electron");
         hideMessage();
         isNegotiating = false;
       } else if (res.mode === "webrtc") {
-        // No forcem oferta immediata: confiem en que viewer-join + server ens enviï broadcaster-available
-        // Per assegurar que estem a la room correcte, reenviem viewer-join
-        console.log(
-          "🔁 (recover) Mode webrtc actiu detectat. Reenviant viewer-join i esperant broadcaster-available"
-        );
         currentMode = "webrtc";
+        showMessage("Negociant emissió...");
         cleanupPeer();
-        isNegotiating = false;
-        socket.emit("viewer-join", { room: roomName });
-        // Watchdog: si en 1500ms no hem iniciat negociació (no ha arribat broadcaster-available), reenviem viewer-join
-        setTimeout(() => {
-          if (currentMode === "webrtc" && !isNegotiating && !mediaStream) {
-            console.log(
-              "⏱️ (recover) Encara sense negociació, reenviant viewer-join"
-            );
-            socket.emit("viewer-join", { room: roomName });
-          }
-        }, 1500);
+        safeCreateOfferAndSend();
       }
     });
   }
@@ -320,15 +306,6 @@ const { ipcRenderer } = require("electron");
             isNegotiating = false;
           }
         }, 5000); // 5 segons
-        // Watchdog per desbloquejar si es queda en negociació sense resposta
-        setTimeout(() => {
-          if (isNegotiating && !mediaStream) {
-            console.log("⏱️ (watchdog) Negociació estancada, reiniciant flux");
-            isNegotiating = false;
-            cleanupPeer();
-            socket.emit("viewer-join", { room: roomName });
-          }
-        }, 6000);
       } catch (error) {
         console.error("Error en la negociació WebRTC:", error);
         hideMessage();
