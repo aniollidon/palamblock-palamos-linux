@@ -9,6 +9,7 @@ const { exec } = require("child_process");
 const commands = require("./commands");
 const { getUsername } = require("./user");
 const { getCurrentSSID } = require("./network");
+const { logger } = require("./logger");
 require("dotenv").config();
 
 // Variables globals
@@ -48,14 +49,14 @@ function createLoginWindow() {
   // Mostra la finestra quan estigui carregada
   loginWindow.once("ready-to-show", () => {
     loginWindow.show();
-    console.log("Login window oberta");
+    logger.info("Login window oberta");
   });
 
-  // Prevé que l'usuari tanqui la finestra de login
+  // Preveu quan l'usuari tanqui la finestra de login
   loginWindow.on("close", (e) => {
     if (!isLoggedIn) {
       e.preventDefault();
-      console.log("Intent de tancar login bloquejat");
+      logger.debug("Intent de tancar login bloquejat");
     }
   });
 }
@@ -82,7 +83,7 @@ function createMainWindow() {
   // Prevé que l'usuari tanqui l'aplicació
   mainWindow.on("close", (e) => {
     e.preventDefault();
-    console.log("Intent de tancar l'aplicació bloquejat");
+    logger.debug("Intent de tancar l'aplicació bloquejat");
   });
 
   // Amaga la finestra principal
@@ -128,7 +129,7 @@ function createDisplayWindow() {
       displayWindow.focus();
     } catch {}
     isDisplayOpen = true;
-    console.log("Display obert");
+    logger.debug("Display obert");
 
     // Registra els shortcuts només quan el display està obert
     registerDisplayShortcuts();
@@ -169,7 +170,7 @@ function createDisplayWindow() {
   displayWindow.on("close", (e) => {
     if (!allowCloseDisplay) {
       e.preventDefault();
-      console.log("Intent de tancar el display bloquejat");
+      logger.debug("Intent de tancar el display bloquejat");
     }
   });
 }
@@ -201,7 +202,7 @@ function closeDisplayWindow() {
       allowCloseDisplay = false;
       displayWindow = null;
       isDisplayOpen = false;
-      console.log("Display tancat");
+      logger.debug("Display tancat");
     });
     displayWindow.close();
 
@@ -224,7 +225,7 @@ function checkIPChanges() {
       const newIP = ip.address();
       if (newIP !== currentIP) {
         currentIP = newIP;
-        console.log("IP canviada a: " + currentIP);
+        logger.info("IP canviada a: " + currentIP);
 
         if (socket && socket.connected) {
           const ssid = await getCurrentSSID();
@@ -238,7 +239,7 @@ function checkIPChanges() {
         }
       }
     } catch (err) {
-      console.log("Error comprovant IP:", err);
+      logger.error("Error comprovant IP:", err);
     }
   }, (process.env.IP_CHECK_INTERVAL || 30) * 1000);
 }
@@ -252,12 +253,12 @@ function connectToServer() {
   });
 
   socket.on("connect", async () => {
-    console.log("Connectat al servidor");
+    logger.info("Connectat al servidor");
     username = getUsername();
     currentIP = ip.address();
     const ssid = await getCurrentSSID();
 
-    console.log("Enviant dades al servidor", {
+    logger.info("Enviant dades al servidor", {
       version: app.getVersion(),
       os: os.platform(),
       ip: currentIP,
@@ -291,17 +292,17 @@ function connectToServer() {
           castSocket.emit("cast-active-query", { alumne: username }, (res) => {
             answered = true;
             if (res && res.active) {
-              console.log("📺 Emissió activa detectada (ws-cast):", res);
+              logger.info("Emissió activa detectada (ws-cast):", res);
               if (!isDisplayOpen) createDisplayWindow();
             } else {
-              console.log("ℹ️ Cap emissió activa en iniciar (ws-cast).");
+              logger.info("Cap emissió activa en iniciar (ws-cast).");
             }
             try {
               castSocket.close();
             } catch {}
           });
         } catch (e) {
-          console.log("Error enviant cast-active-query:", e.message);
+          logger.error("Error enviant cast-active-query:", e.message);
         }
       });
       // Timeout de seguretat
@@ -313,45 +314,48 @@ function connectToServer() {
         }
       }, 4000);
     } catch (e) {
-      console.log("Error comprovant emissió activa (ws-cast):", e && e.message);
+      logger.error(
+        "Error comprovant emissió activa (ws-cast):",
+        e && e.message
+      );
     }
   });
 
   socket.on("execute", (data) => {
     if (data.command === "open-display") {
-      console.log("Rebuda ordre d'obrir display");
+      logger.info("Rebuda ordre d'obrir display");
       createDisplayWindow();
     } else if (data.command === "close-display") {
-      console.log("Rebuda ordre de tancar display");
+      logger.info("Rebuda ordre de tancar display");
       closeDisplayWindow();
     } else {
-      console.log("Executant comanda:", data.command);
+      logger.info("Executant comanda:", data.command);
       if (
         !data.command ||
         (!commands.linux[data.command] && !commands.linux_sudo[data.command])
       ) {
-        console.error("Comanda " + data.command + " no disponible");
+        logger.error("Comanda " + data.command + " no disponible");
         return;
       }
 
       if (commands.linux[data.command]) {
         const args = data.message ? " " + data.message : "";
-        console.log(
+        logger.info(
           "Executant comanda: " + commands.linux[data.command] + args
         );
         exec(commands.linux[data.command] + args, (error, stdout, stderr) => {
           if (error) {
-            console.error(`Error: ${error.message}`);
+            logger.error(`Error: ${error.message}`);
             return;
           }
           if (stderr) {
-            console.error(`Error: ${stderr}`);
+            logger.error(`Error: ${stderr}`);
             return;
           }
-          console.log(`stdout: ${stdout}`);
+          logger.info(`stdout: ${stdout}`);
         });
       } else if (commands.linux_sudo[data.command]) {
-        console.log(
+        logger.info(
           "Executant comanda (sudo): " + commands.linux_sudo[data.command]
         );
         exec(
@@ -360,14 +364,14 @@ function connectToServer() {
           }`,
           (error, stdout, stderr) => {
             if (error) {
-              console.error(`Error: ${error.message}`);
+              logger.error(`Error: ${error.message}`);
               return;
             }
             if (stderr) {
-              console.error(`Error: ${stderr}`);
+              logger.error(`Error: ${stderr}`);
               return;
             }
-            console.log(`stdout: ${stdout}`);
+            logger.info(`stdout: ${stdout}`);
           }
         );
       }
@@ -379,11 +383,11 @@ function connectToServer() {
   });
 
   socket.on("connect_error", (error) => {
-    console.error("Error de connexió:", error.message);
+    logger.error("Error de connexió:", error.message);
   });
 
   socket.on("disconnect", () => {
-    console.log("Desconnectat del servidor");
+    logger.info("Desconnectat del servidor");
   });
 }
 
@@ -391,39 +395,39 @@ function connectToServer() {
 function registerDisplayShortcuts() {
   // Desactiva les tecles de sortida només quan el display està obert
   globalShortcut.register("Alt+F4", () => {
-    console.log("Alt+F4 desactivat (display obert)");
+    logger.debug("Alt+F4 desactivat (display obert)");
     return false;
   });
 
   globalShortcut.register("Escape", () => {
-    console.log("Escape desactivat (display obert)");
+    logger.debug("Escape desactivat (display obert)");
     return false;
   });
 
   // En Linux, també podem desactivar Alt+F2 (executar comanda)
   globalShortcut.register("Alt+F2", () => {
-    console.log("Alt+F2 desactivat (display obert)");
+    logger.debug("Alt+F2 desactivat (display obert)");
     return false;
   });
 
   // Bloqueja altres combinacions habituals
   globalShortcut.register("CommandOrControl+W", () => {
-    console.log("Ctrl/Cmd+W desactivat (display obert)");
+    logger.debug("Ctrl/Cmd+W desactivat (display obert)");
     return false;
   });
   globalShortcut.register("CommandOrControl+Q", () => {
-    console.log("Ctrl/Cmd+Q desactivat (display obert)");
+    logger.debug("Ctrl/Cmd+Q desactivat (display obert)");
     return false;
   });
   globalShortcut.register("F11", () => {
-    console.log("F11 desactivat (display obert)");
+    logger.debug("F11 desactivat (display obert)");
     return false;
   });
 
   // En molts entorns Linux, Alt+Tab i Super són reservats pel SO i no es poden bloquejar
   try {
     /*globalShortcut.register('Super', () => {
-            console.log('Super desactivat (display obert)');
+            logger.debug('Super desactivat (display obert)');
             return false;
         });*/
   } catch {}
@@ -438,9 +442,9 @@ function unregisterDisplayShortcuts() {
     globalShortcut.unregister("CommandOrControl+W");
     globalShortcut.unregister("CommandOrControl+Q");
     globalShortcut.unregister("F11");
-    console.log("Shortcuts del display desregistrats");
+    logger.debug("Shortcuts del display desregistrats");
   } catch (e) {
-    console.log("Error desregistrant shortcuts:", e);
+    logger.error("Error desregistrant shortcuts:", e);
   }
 }
 
@@ -449,25 +453,25 @@ app.whenReady().then(() => {
   // Comprova si l'usuari està logat
   username = getUsername();
   if (username && username !== "unknown") {
-    console.log("✅ Usuari ja logat:", username);
+    logger.info("Usuari ja logat:", username);
     isLoggedIn = true;
     createMainWindow();
     connectToServer();
   } else {
-    console.log("🔐 No hi ha usuari logat, mostrant login...");
+    logger.info("No hi ha usuari logat, mostrant login...");
     createLoginWindow();
   }
 
   // Registra shortcuts globals per a prevenir sortides (Linux) - sempre actius
   globalShortcut.register("Ctrl+Alt+Delete", () => {
-    console.log("Ctrl+Alt+Delete desactivat");
+    logger.debug("Ctrl+Alt+Delete desactivat");
     return false;
   });
 });
 
 app.on("window-all-closed", () => {
   // No tanquem l'aplicació quan es tanquen les finestres
-  console.log(
+  logger.info(
     "Totes les finestres tancades, però l'aplicació segueix executant-se"
   );
 });
@@ -475,7 +479,7 @@ app.on("window-all-closed", () => {
 app.on("before-quit", (e) => {
   // Prevé que l'usuari tanqui l'aplicació
   e.preventDefault();
-  console.log("Intent de tancar l'aplicació bloquejat");
+  logger.debug("Intent de tancar l'aplicació bloquejat");
 });
 
 app.on("will-quit", () => {
@@ -490,14 +494,14 @@ ipcMain.handle("get-ip", () => {
 
 ipcMain.handle("get-username", () => {
   const username = getUsername();
-  console.log("🔍 get-username cridat, retornant:", username);
+  logger.debug("get-username cridat, retornant:", username);
   return username;
 });
 
 // Retorna la URL del servidor definida a .env per al display/viewer
 ipcMain.handle("get-server-url", () => {
   const serverUrl = process.env.SERVER_PALAMBLOCK || "http://localhost:3000";
-  console.log("🌐 get-server-url cridat, retornant:", serverUrl);
+  logger.debug("get-server-url cridat, retornant:", serverUrl);
   return serverUrl;
 });
 
@@ -515,13 +519,13 @@ ipcMain.handle("validate-credentials", async (event, payload) => {
       },
       { validateStatus: () => true }
     );
-    console.log("🔐 validate-credentials resposta:", resp.status);
+    logger.debug("validate-credentials resposta:", resp.status);
     if (resp.status === 200) return { ok: true };
     if (resp.status === 401 || resp.status === 404)
       return { ok: false, reason: "invalid" };
     return { ok: false, reason: "server", status: resp.status };
   } catch (err) {
-    console.error("❌ Error validant credencials:", err && err.message);
+    logger.error("Error validant credencials:", err && err.message);
     return { ok: false, reason: "network", message: err && err.message };
   }
 });
@@ -531,17 +535,17 @@ ipcMain.handle("save-username", async (event, username) => {
   try {
     const userfile = path.join(app.getPath("userData"), ".user");
     fs.writeFileSync(userfile, username, "utf8");
-    console.log("✅ Usuari guardat:", username);
+    logger.info("Usuari guardat:", username);
     return { success: true };
   } catch (error) {
-    console.error("❌ Error guardant usuari:", error);
+    logger.error("Error guardant usuari:", error);
     return { success: false, error: error.message };
   }
 });
 
 // Quan el login es completa
 ipcMain.handle("login-completed", () => {
-  console.log("✅ Login completat, iniciant aplicació...");
+  logger.info("Login completat, iniciant aplicació...");
   isLoggedIn = true;
 
   // Tanca la finestra de login

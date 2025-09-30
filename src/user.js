@@ -2,18 +2,19 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { app } = require('electron');
+const { logger } = require('./logger');
 
 function getUsername(){
     let username = 'unknown';
     const userfile = path.join(app.getPath('userData'), '.user');
-    console.log("Cercant user a " + userfile)
+    logger.info("Cercant user a " + userfile);
     try {
         // Check login on hidden file
         username = fs.readFileSync(userfile, 'utf8');
         // esborra salts de línia
         username = username.replace(/\n/g, '');
     } catch (err){
-        console.log("No login file found");
+        logger.error("No login file found");
     }
 
     return username;

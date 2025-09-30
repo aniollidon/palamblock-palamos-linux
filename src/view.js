@@ -1,4 +1,5 @@
 const { ipcRenderer } = require("electron");
+const { logger } = require("../logger");
 
 (async () => {
   const player = document.getElementById("player");
@@ -19,8 +20,8 @@ const { ipcRenderer } = require("electron");
   function scheduleReload(delay = 5000) {
     if (reloadScheduled) return;
     reloadScheduled = true;
-    console.log(
-      `♻️ Recarregant la pàgina en ${delay} ms per recuperar la connexió WebRTC`
+    logger.debug(
+      `Recarregant la pàgina en ${delay} ms per recuperar la connexió WebRTC`
     );
     showMessage(
       `Error de connexió. Reintentant en ${Math.round(delay / 1000)}s...`
@@ -35,24 +36,24 @@ const { ipcRenderer } = require("electron");
     const serverUrl = await ipcRenderer.invoke("get-server-url");
     roomName = await ipcRenderer.invoke("get-username");
 
-    console.log("🔧 CONFIGURACIÓ INICIAL:");
-    console.log("  - Server URL:", serverUrl);
-    console.log("  - Room Name (username):", roomName);
+    logger.info("CONFIGURACIÓ INICIAL:");
+    logger.info("  - Server URL:", serverUrl);
+    logger.info("  - Room Name (username):", roomName);
 
     if (!serverUrl) {
-      console.error("❌ Error: servidor no configurat (.env)");
+      logger.error("Error: servidor no configurat (.env)");
       showMessage("Error: servidor no configurat (.env)");
       return;
     }
     if (!roomName) {
-      console.error("❌ Error: no s'ha pogut obtenir el nom d'usuari");
+      logger.error("Error: no s'ha pogut obtenir el nom d'usuari");
       showMessage("Error: no s'ha pogut obtenir el nom d'usuari");
       return;
     }
 
     // Connexió al servidor
     socket = io(serverUrl, { path: "/ws-cast" });
-    console.log("✅ Socket creat, connectant...");
+    logger.info("Socket creat, connectant...");
 
     // Configurar events de socket
     setupSocketEvents();
@@ -60,7 +61,7 @@ const { ipcRenderer } = require("electron");
     // Iniciar visualització
     startViewing();
   } catch (e) {
-    console.error("❌ Error inicialitzant:", e);
+    logger.error("Error inicialitzant:", e);
     showMessage(
       "Error inicialitzant: " + (e && e.message ? e.message : "desconegut")
     );
@@ -108,7 +109,7 @@ const { ipcRenderer } = require("electron");
         } else {
           mediaStream.addTrack(event.track);
         }
-        player.play().catch((e) => console.warn("Error playing video:", e));
+        player.play().catch((e) => logger.warn("Error playing video:", e));
         hideMessage();
         // Assegura que el mode visual és vídeo
         if (frame) {
@@ -118,7 +119,7 @@ const { ipcRenderer } = require("electron");
         player.classList.remove("hidden");
         currentMode = "webrtc";
       } catch (error) {
-        console.error("Error handling track:", error);
+        logger.error("Error handling track:", error);
         hideMessage();
         showMessage("Error rebent el vídeo. Esperant emissió...");
       }
@@ -134,7 +135,7 @@ const { ipcRenderer } = require("electron");
     };
 
     pc.onconnectionstatechange = () => {
-      console.log("Connection state:", pc.connectionState);
+      logger.info("Connection state:", pc.connectionState);
       if (
         pc.connectionState === "failed" ||
         pc.connectionState === "disconnected" ||
@@ -172,27 +173,27 @@ const { ipcRenderer } = require("electron");
       showMessage("No s'ha pogut obtenir el nom d'usuari");
       return;
     }
-    console.log("🎬 Iniciant visualització per sala:", roomName);
+    logger.info("Iniciant visualització per sala:", roomName);
     scheduleHideCursor();
     socket.emit("viewer-join", { room: roomName });
     showMessage("Connectant a la sala...");
   }
 
   function setupSocketEvents() {
-    console.log("🔌 Configurant events de socket...");
+    logger.info("Configurant events de socket...");
 
     socket.on("connect", () => {
       const first = !hasEverConnected;
       hasEverConnected = true;
-      console.log("✅ Socket connectat!", first ? "(inicial)" : "(reconnexió)");
-      console.log("  - Socket ID:", socket.id);
-      console.log("  - Room Name:", roomName);
+      logger.info("Socket connectat!", first ? "(inicial)" : "(reconnexió)");
+      logger.info("  - Socket ID:", socket.id);
+      logger.info("  - Room Name:", roomName);
       // Amaga qualsevol missatge d'error antic
       hideMessage();
       // Si és una reconnexió, tornem a unir-nos a la sala
       if (!first) {
         if (roomName) {
-          console.log("🔁 Reenviant viewer-join després de reconnexió");
+          logger.info("Reenviant viewer-join després de reconnexió");
           socket.emit("viewer-join", { room: roomName });
           showMessage("Reconnectat. Esperant emissió...");
           // Si ja hi ha broadcaster, el servidor ens enviarà els events pertinents
@@ -201,18 +202,18 @@ const { ipcRenderer } = require("electron");
     });
 
     socket.on("connect_error", (error) => {
-      console.error("❌ Error de connexió socket:", error);
+      logger.error("Error de connexió socket:", error);
       showMessage("Error de connexió: " + error.message);
     });
 
     socket.on("disconnect", (reason) => {
-      console.log("🔌 Socket desconnectat:", reason);
+      logger.info("Socket desconnectat:", reason);
       showMessage("Desconnectat. Reconnectant...");
       shouldRejoin = true;
     });
 
     socket.on("broadcaster-available", async () => {
-      console.log("✅ Broadcaster disponible!");
+      logger.info("Broadcaster disponible!");
       showMessage("Emissor disponible. Negociant...");
       // Canvia a mode WebRTC
       if (frame) {
@@ -229,7 +230,7 @@ const { ipcRenderer } = require("electron");
           offerToReceiveVideo: true,
         });
         await peer.setLocalDescription(offer);
-        console.log("📤 Enviant viewer-offer");
+        logger.info("Enviant viewer-offer");
         socket.emit("viewer-offer", {
           room: roomName,
           sdp: peer.localDescription,
@@ -242,7 +243,7 @@ const { ipcRenderer } = require("electron");
           }
         }, 5000); // 5 segons
       } catch (error) {
-        console.error("Error en la negociació WebRTC:", error);
+        logger.error("Error en la negociació WebRTC:", error);
         hideMessage();
         showMessage("Error en la connexió. Reintentant en 5s...");
         scheduleReload();
@@ -250,13 +251,13 @@ const { ipcRenderer } = require("electron");
     });
 
     socket.on("broadcaster-answer", async ({ sdp }) => {
-      console.log("📥 Rebut broadcaster-answer");
+      logger.info("Rebut broadcaster-answer");
       if (!pc) return;
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(sdp));
         hideMessage();
       } catch (error) {
-        console.error("Error setting remote description:", error);
+        logger.error("Error setting remote description:", error);
         hideMessage();
         showMessage("Error en la connexió. Reintentant en 5s...");
         scheduleReload();
@@ -268,12 +269,12 @@ const { ipcRenderer } = require("electron");
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate));
       } catch (e) {
-        console.warn("Error afegint ICE candidate", e);
+        logger.warn("Error afegint ICE candidate", e);
       }
     });
 
     socket.on("broadcaster-ended", () => {
-      console.log("🔚 Broadcaster ended");
+      logger.info("Broadcaster ended");
       cleanupPeer();
       // Neteja iframe si estava actiu
       if (frame) {
@@ -287,7 +288,7 @@ const { ipcRenderer } = require("electron");
 
     // Nou: suport per compartició de URL
     socket.on("url-broadcast-started", ({ url, interactive }) => {
-      console.log("🌐 URL broadcast started:", { url, interactive });
+      logger.info("URL broadcast started:", { url, interactive });
       // Tanca connexió WebRTC si existia
       cleanupPeer();
       // Configura l'iframe
