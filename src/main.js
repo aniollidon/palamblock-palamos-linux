@@ -10,7 +10,13 @@ const commands = require("./commands");
 const { getUsername } = require("./user");
 const { getCurrentSSID } = require("./network");
 const { logger } = require("./logger");
+const { autoUpdater } = require("electron-updater");
+const log = require("electron-log");
 require("dotenv").config();
+
+// Configuració del logger per l'autoUpdater
+log.transports.file.level = "info";
+autoUpdater.logger = log;
 
 // Variables globals
 let mainWindow;
@@ -560,4 +566,48 @@ ipcMain.handle("login-completed", () => {
   connectToServer();
 
   return { success: true };
+});
+
+// ========================================
+// AUTO-UPDATER - Gestió d'actualitzacions
+// ========================================
+
+autoUpdater.on("checking-for-update", () => {
+  log.info("Comprovant actualitzacions...");
+});
+
+autoUpdater.on("update-available", (info) => {
+  log.info("Actualització disponible:", info.version);
+});
+
+autoUpdater.on("update-not-available", (info) => {
+  log.info("Aplicació actualitzada. Versió actual:", info.version);
+});
+
+autoUpdater.on("error", (err) => {
+  log.error("Error en actualització:", err);
+});
+
+autoUpdater.on("download-progress", (progressObj) => {
+  const logMessage = `Descarregant actualització: ${progressObj.percent.toFixed(
+    2
+  )}%`;
+  log.info(logMessage);
+});
+
+autoUpdater.on("update-downloaded", (info) => {
+  log.info("Actualització descarregada. Versió:", info.version);
+  // Instal·la automàticament després de 5 segons
+  setTimeout(() => {
+    autoUpdater.quitAndInstall();
+  }, 5000);
+});
+
+// Comprova actualitzacions quan l'app està llesta
+app.on("ready", () => {
+  if (!isDev) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdatesAndNotify();
+    }, 10000); // Espera 10 segons després d'iniciar
+  }
 });

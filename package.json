@@ -7,6 +7,8 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "build": "electron-builder",
+    "build-linux": "electron-builder --linux",
+    "publish": "electron-builder --linux --publish always",
     "postinstall": "electron-builder install-app-deps",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop PalamOS-Dashboard",
@@ -21,7 +23,9 @@
     "axios": "^1.7.2",
     "dotenv": "^16.4.5",
     "ip": "^2.0.1",
-    "socket.io-client": "^4.7.5"
+    "socket.io-client": "^4.7.5",
+    "electron-updater": "^6.6.2",
+    "electron-log": "^5.4.3"
   },
   "devDependencies": {
     "electron": "^28.3.3",
@@ -38,10 +42,28 @@
       "node_modules/**/*",
       "package.json"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "aniollidon",
+      "repo": "palamblock-palamos-linux",
+      "releaseType": "release"
+    },
     "linux": {
-      "target": "AppImage",
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "assets/icon.png",
-      "category": "System"
+      "category": "System",
+      "description": "Dashboard per PalamOS - Sistema de gestió d'aula"
     }
+  },
+  "author": {
+    "name": "PalamBlock Team",
+    "email": "info@palamblock.cat"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aniollidon/palamblock-palamos-linux.git"
   }
 }
