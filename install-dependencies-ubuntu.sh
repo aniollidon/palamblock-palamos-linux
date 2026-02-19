@@ -75,7 +75,11 @@ fi
 # Instal·la dependències de Node.js
 echo "Instal·lant dependències de Node.js..."
 cd "$(dirname "$0")"
-npm install
+npm install --ignore-scripts
+
+# Descarregar el binari d'Electron manualment
+echo "Descarregant binari d'Electron..."
+npx electron install
 
 # Corregir permisos del sandbox d'Electron
 SANDBOX_PATH="node_modules/electron/dist/chrome-sandbox"
