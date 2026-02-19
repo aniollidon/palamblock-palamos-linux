@@ -9,98 +9,59 @@ sudo apt update
 
 # Instal·la les dependències necessàries
 echo "Instal·lant dependències..."
+
+# Detecta la versió d'Ubuntu per escollir els paquets correctes
+UBUNTU_VERSION=$(lsb_release -rs 2>/dev/null || echo "22.04")
+UBUNTU_MAJOR=$(echo "$UBUNTU_VERSION" | cut -d. -f1)
+
+# Paquets que canvien segons la versió d'Ubuntu
+if [ "$UBUNTU_MAJOR" -ge 24 ]; then
+    WEBKIT_PKG="libwebkit2gtk-4.1-dev"
+    SECRET_PKG="libsecret-1-dev"
+else
+    WEBKIT_PKG="libwebkit2gtk-4.0-dev"
+    SECRET_PKG="libgnome-keyring-dev libgconf-2-4 libgconf2-dev"
+fi
+
 sudo apt install -y \
     curl \
     wget \
     git \
     build-essential \
     libgtk-3-dev \
-    libwebkit2gtk-4.0-dev \
+    $WEBKIT_PKG \
     libappindicator3-dev \
     librsvg2-dev \
     libnotify-dev \
+    $SECRET_PKG \
     libxtst-dev \
     libxss-dev \
-    libnss3-dev \
-    libasound2-dev \
-    libatspi2.0-dev \
-    libdrm-dev \
-    libxcomposite-dev \
-    libxdamage-dev \
-    libxrandr-dev \
-    libgbm-dev \
-    libxss-dev \
-    libgconf-2-4 \
-    libgnome-keyring-dev \
-    libpango1.0-dev \
-    libcairo2-dev \
-    libgdk-pixbuf2.0-dev \
-    libgtk2.0-dev \
-    libatk1.0-dev \
-    libgail-3-dev \
-    libx11-dev \
-    libxext-dev \
-    libxrender-dev \
-    libxinerama-dev \
-    libxi-dev \
-    libxrandr-dev \
-    libxcursor-dev \
-    libxcomposite-dev \
-    libxdamage-dev \
-    libxfixes-dev \
-    libxss-dev \
-    libxtst-dev \
-    libxrandr-dev \
-    libasound2-dev \
-    libpulse-dev \
-    libdbus-1-dev \
-    libudev-dev \
-    libgconf2-dev \
-    libgnome-keyring-dev \
     libnss3-dev \
     libnspr4-dev \
-    libcups2-dev \
+    libasound2-dev \
     libatspi2.0-dev \
     libdrm-dev \
+    libgbm-dev \
+    libxcomposite-dev \
+    libxdamage-dev \
+    libxrandr-dev \
+    libxfixes-dev \
     libxkbcommon-dev \
-    libxcomposite-dev \
-    libxdamage-dev \
-    libxrandr-dev \
-    libgbm-dev \
-    libxss-dev \
-    libgconf-2-4 \
-    libgnome-keyring-dev \
     libpango1.0-dev \
     libcairo2-dev \
     libgdk-pixbuf2.0-dev \
     libgtk2.0-dev \
     libatk1.0-dev \
-    libgail-3-dev \
     libx11-dev \
     libxext-dev \
     libxrender-dev \
     libxinerama-dev \
     libxi-dev \
-    libxrandr-dev \
     libxcursor-dev \
-    libxcomposite-dev \
-    libxdamage-dev \
-    libxfixes-dev \
-    libxss-dev \
-    libxtst-dev \
-    libxrandr-dev \
-    libasound2-dev \
     libpulse-dev \
     libdbus-1-dev \
     libudev-dev \
-    libgconf2-dev \
-    libgnome-keyring-dev \
-    libnss3-dev \
-    libnspr4-dev \
-    libcups2-dev \
-    libatspi2.0-dev \
-    libdrm-dev \
-    libxkbcommon-dev
+    libcups2-dev
 
 # Instal·la Node.js i npm si no estan instal·lats
 if ! command -v node &> /dev/null; then
