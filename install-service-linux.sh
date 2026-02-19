@@ -183,37 +183,39 @@ echo "Servei d'usuari creat per: $SERVICE_RUN_USER (estat: $( [ "$ENABLE_OK" = t
 
 # ---------- Servei x11vnc (servidor VNC al port 5900) ----------
 echo "Creant servei x11vnc (si existeix /usr/bin/x11vnc)..."
-if command -v x11vnc >/dev/null 2>&1; then
-    mkdir -p /var/log/palamos-dashboard
-    chown $SERVICE_RUN_USER:$SERVICE_RUN_USER /var/log/palamos-dashboard
-    cat > /etc/systemd/system/x11vnc.service << X11VNC
+if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ] || command -v wayvnc >/dev/null 2>&1; then
+    echo "Detectat entorn Wayland. Creant servei wayvnc (si existeix /usr/bin/wayvnc)..."
+    if command -v wayvnc >/dev/null 2>&1; then
+        mkdir -p /var/log/palamos-dashboard
+        chown $SERVICE_RUN_USER:$SERVICE_RUN_USER /var/log/palamos-dashboard
+        cat > /etc/systemd/system/wayvnc.service << WAYVNC
 [Unit]
-Description=VNC Server for X11 (x11vnc :5900)
-Requires=display-manager.service
-After=display-manager.service network-online.target
+Description=VNC Server for Wayland (wayvnc :5900)
+After=network.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/x11vnc -auth guess -forever -loop -noxdamage -repeat -display $DISPLAY_VALUE -rfbauth /etc/x11vnc.pwd -rfbport 5900 -shared
-ExecStop=/usr/bin/killall x11vnc
+User=$SERVICE_RUN_USER
+Group=$SERVICE_RUN_USER
+Environment=WAYLAND_DISPLAY=wayland-0
+ExecStart=/usr/bin/wayvnc 0.0.0.0 5900
 Restart=on-failure
 RestartSec=5
-StandardOutput=append:/var/log/palamos-dashboard/x11vnc.log
-StandardError=append:/var/log/palamos-dashboard/x11vnc.log
+StandardOutput=append:/var/log/palamos-dashboard/wayvnc.log
+StandardError=append:/var/log/palamos-dashboard/wayvnc.log
 
 [Install]
 WantedBy=multi-user.target
-X11VNC
-    systemctl daemon-reload
-    systemctl enable x11vnc.service
-    echo "Servei x11vnc creat i habilitat."
-    if [ ! -f /etc/x11vnc.pwd ]; then
-        echo "AVÍS: No existeix /etc/x11vnc.pwd. Crea'l amb: sudo x11vnc -storepasswd <contrasenya> /etc/x11vnc.pwd"
+WAYVNC
+        systemctl daemon-reload
+        systemctl enable wayvnc.service
+        echo "Servei wayvnc creat i habilitat. Inicia'l amb: sudo systemctl start wayvnc"
+    else
+        echo "wayvnc no instal·lat (/usr/bin/wayvnc no trobat). Ometent servei wayvnc. Instal·la'l amb: sudo apt install wayvnc"
     fi
 else
-    echo "x11vnc no instal·lat (/usr/bin/x11vnc no trobat). Ometent servei x11vnc."
-    echo "Instal·la'l amb: sudo apt install x11vnc"
+    echo "No s'ha detectat entorn Wayland ni wayvnc. Ometent servei VNC."
 fi
 
 # ---------- Servei novnc-proxy (WebSocket :6080 → VNC :5900) ----------
