@@ -163,8 +163,8 @@ UID_NUM=$(id -u "$SERVICE_RUN_USER")
 USER_RUNTIME_DIR="/run/user/$UID_NUM"
 ENABLE_OK=false
 
-chmod 4755 /opt/palamos-dashboard/chrome-sandbox
-chown root:root /opt/palamos-dashboard/chrome-sandbox
+sudo chmod 4755 /opt/palamos-dashboard/chrome-sandbox
+sudo chown root:root /opt/palamos-dashboard/chrome-sandbox
 
 echo "Verificant sessió d'usuari (XDG_RUNTIME_DIR)..."
 if [ -d "$USER_RUNTIME_DIR" ]; then
