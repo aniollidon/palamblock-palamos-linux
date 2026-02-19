@@ -18,9 +18,11 @@ UBUNTU_MAJOR=$(echo "$UBUNTU_VERSION" | cut -d. -f1)
 if [ "$UBUNTU_MAJOR" -ge 24 ]; then
     WEBKIT_PKG="libwebkit2gtk-4.1-dev"
     SECRET_PKG="libsecret-1-dev"
+    INDICATOR_PKG="libayatana-appindicator3-dev"
 else
     WEBKIT_PKG="libwebkit2gtk-4.0-dev"
     SECRET_PKG="libgnome-keyring-dev libgconf-2-4 libgconf2-dev"
+    INDICATOR_PKG="libappindicator3-dev"
 fi
 
 sudo apt install -y \
@@ -30,7 +32,7 @@ sudo apt install -y \
     build-essential \
     libgtk-3-dev \
     $WEBKIT_PKG \
-    libappindicator3-dev \
+    $INDICATOR_PKG \
     librsvg2-dev \
     libnotify-dev \
     $SECRET_PKG \
@@ -75,11 +77,11 @@ fi
 # Instal·la dependències de Node.js
 echo "Instal·lant dependències de Node.js..."
 cd "$(dirname "$0")"
-npm install --ignore-scripts
+npm install
 
-# Descarregar el binari d'Electron manualment
+# Executar l'script d'instal·lació d'Electron per descarregar el binari
 echo "Descarregant binari d'Electron..."
-npx electron install
+node node_modules/electron/install.js
 
 # Corregir permisos del sandbox d'Electron
 SANDBOX_PATH="node_modules/electron/dist/chrome-sandbox"

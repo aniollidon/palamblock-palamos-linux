@@ -9,7 +9,6 @@
     "build": "electron-builder",
     "build-linux": "electron-builder --linux",
     "publish": "electron-builder --linux --publish always",
-    "postinstall": "electron-builder install-app-deps",
     "pm2:start": "pm2 start ecosystem.config.js",
     "pm2:stop": "pm2 stop PalamOS-Dashboard",
     "pm2:restart": "pm2 restart PalamOS-Dashboard",
