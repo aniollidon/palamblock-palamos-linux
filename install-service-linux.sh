@@ -182,6 +182,7 @@ fi
 echo "Servei d'usuari creat per: $SERVICE_RUN_USER (estat: $( [ "$ENABLE_OK" = true ] && echo 'habilitat' || echo 'pendent' ))"
 echo "Creant servei addicional novnc-proxy (si existeix /home/super/noVNC/utils/novnc_proxy)..."
     if [ -x /home/super/noVNC/utils/novnc_proxy ]; then
+        mkdir -p /var/log/palamos-dashboard
         cat > /etc/systemd/system/novnc-proxy.service << NOVNC
 [Unit]
 Description=noVNC proxy (localhost:5900 -> websocket 6080)
