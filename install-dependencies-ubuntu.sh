@@ -111,15 +111,22 @@ else
     echo "Node.js ja està instal·lat: $(node --version)"
 fi
 
-# Descarregar l'última versió (canvia la versió si cal)
-wget https://github.com/nicedoc/electron/releases/download/v33.3.1/electron_33.3.1_amd64.deb
+# Instal·la dependències de Node.js
+echo "Instal·lant dependències de Node.js..."
+cd "$(dirname "$0")"
+npm install
 
-# O directament des del release oficial d'Electron
-wget https://github.com/nicedoc/electron-installer-debian/releases/latest
-
-# Instal·lar
-sudo dpkg -i electron_*.deb
-sudo apt install -f
+# Corregir permisos del sandbox d'Electron
+SANDBOX_PATH="node_modules/electron/dist/chrome-sandbox"
+if [ -f "$SANDBOX_PATH" ]; then
+    echo "Corregint permisos del chrome-sandbox d'Electron..."
+    sudo chown root:root "$SANDBOX_PATH"
+    sudo chmod 4755 "$SANDBOX_PATH"
+    echo "Permisos del sandbox corregits correctament."
+else
+    echo "AVÍS: No s'ha trobat chrome-sandbox a $SANDBOX_PATH"
+    echo "Executa 'npm install' primer i torna a executar aquest script."
+fi
 
 # Instal·la PM2 globalment si no està instal·lat
 if ! command -v pm2 &> /dev/null; then
