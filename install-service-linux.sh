@@ -188,7 +188,11 @@ if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ] || command -
     if command -v wayvnc >/dev/null 2>&1; then
         mkdir -p /var/log/palamos-dashboard
         chown $SERVICE_RUN_USER:$SERVICE_RUN_USER /var/log/palamos-dashboard
-        cat > /etc/systemd/system/wayvnc.service << WAYVNC
+        USER_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
+        USER_UNIT_DIR="$USER_HOME/.config/systemd/user"
+        mkdir -p "$USER_UNIT_DIR"
+        chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER "$USER_UNIT_DIR"
+        cat > "$USER_UNIT_DIR/wayvnc.service" << WAYVNC
 [Unit]
 Description=VNC Server for Wayland (wayvnc :5900)
 After=network.target
@@ -196,8 +200,6 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=$SERVICE_RUN_USER
-Group=$SERVICE_RUN_USER
 Environment=WAYLAND_DISPLAY=wayland-0
 ExecStart=/usr/bin/wayvnc 0.0.0.0 5900
 Restart=on-failure
@@ -206,11 +208,12 @@ StandardOutput=append:/var/log/palamos-dashboard/wayvnc.log
 StandardError=append:/var/log/palamos-dashboard/wayvnc.log
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 WAYVNC
-        systemctl daemon-reload
-        systemctl enable wayvnc.service
-        echo "Servei wayvnc creat i habilitat. Inicia'l amb: sudo systemctl start wayvnc"
+        chown $SERVICE_RUN_USER:$SERVICE_RUN_USER "$USER_UNIT_DIR/wayvnc.service"
+        sudo -u "$SERVICE_RUN_USER" XDG_RUNTIME_DIR="/run/user/$UID_NUM" systemctl --user daemon-reload
+        sudo -u "$SERVICE_RUN_USER" XDG_RUNTIME_DIR="/run/user/$UID_NUM" systemctl --user enable wayvnc.service
+        echo "Servei wayvnc creat i habilitat per a l'usuari $SERVICE_RUN_USER. Inicia'l amb: sudo -u $SERVICE_RUN_USER XDG_RUNTIME_DIR=/run/user/$UID_NUM systemctl --user start wayvnc.service"
     else
         echo "wayvnc no instal·lat (/usr/bin/wayvnc no trobat). Ometent servei wayvnc. Instal·la'l amb: sudo apt install wayvnc"
     fi
