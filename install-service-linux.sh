@@ -192,6 +192,7 @@ if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ] || command -
         USER_UNIT_DIR="$USER_HOME/.config/systemd/user"
         mkdir -p "$USER_UNIT_DIR"
         chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER "$USER_UNIT_DIR"
+    [ -n "$UID_NUM" ] || UID_NUM=$(id -u "$SERVICE_RUN_USER")
         cat > "$USER_UNIT_DIR/wayvnc.service" << WAYVNC
 [Unit]
 Description=VNC Server for Wayland (wayvnc :5900)
@@ -200,12 +201,14 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-Environment=WAYLAND_DISPLAY=wayland-0
-ExecStart=/usr/bin/wayvnc 0.0.0.0 5900
-Restart=on-failure
-RestartSec=5
-StandardOutput=append:/var/log/palamos-dashboard/wayvnc.log
-StandardError=append:/var/log/palamos-dashboard/wayvnc.log
+
+    Environment=WAYLAND_DISPLAY=wayland-0
+    Environment=XDG_RUNTIME_DIR=/run/user/$UID_NUM
+    ExecStart=/usr/bin/wayvnc 0.0.0.0 5900
+    Restart=on-failure
+    RestartSec=5
+    StandardOutput=append:/var/log/palamos-dashboard/wayvnc.log
+    StandardError=append:/var/log/palamos-dashboard/wayvnc.log
 
 [Install]
 WantedBy=default.target
