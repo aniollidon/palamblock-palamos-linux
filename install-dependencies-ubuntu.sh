@@ -111,6 +111,16 @@ else
     echo "Node.js ja està instal·lat: $(node --version)"
 fi
 
+# Descarregar l'última versió (canvia la versió si cal)
+wget https://github.com/nicedoc/electron/releases/download/v33.3.1/electron_33.3.1_amd64.deb
+
+# O directament des del release oficial d'Electron
+wget https://github.com/nicedoc/electron-installer-debian/releases/latest
+
+# Instal·lar
+sudo dpkg -i electron_*.deb
+sudo apt install -f
+
 # Instal·la PM2 globalment si no està instal·lat
 if ! command -v pm2 &> /dev/null; then
     echo "Instal·lant PM2..."
