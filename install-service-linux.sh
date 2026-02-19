@@ -181,8 +181,8 @@ fi
 
 echo "Servei d'usuari creat per: $SERVICE_RUN_USER (estat: $( [ "$ENABLE_OK" = true ] && echo 'habilitat' || echo 'pendent' ))"
 
-# ---------- Servei x11vnc (servidor VNC al port 5900) ----------
-echo "Creant servei x11vnc (si existeix /usr/bin/x11vnc)..."
+# ---------- Servei wayvnc (servidor VNC al port 5900) ----------
+echo "Creant servei wayvnc (si existeix /usr/bin/wayvnc)..."
 if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ] || command -v wayvnc >/dev/null 2>&1; then
     echo "Detectat entorn Wayland. Creant servei wayvnc (si existeix /usr/bin/wayvnc)..."
     if command -v wayvnc >/dev/null 2>&1; then
@@ -249,7 +249,7 @@ NOVNC
     fi
 
 echo "Iniciant serveis..."
-sudo systemctl start x11vnc
+sudo systemctl start wayvnc
 sudo systemctl start novnc-proxy
 
 echo
