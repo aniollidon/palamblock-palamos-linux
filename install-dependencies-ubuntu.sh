@@ -63,7 +63,8 @@ sudo apt install -y \
     libpulse-dev \
     libdbus-1-dev \
     libudev-dev \
-    libcups2-dev
+    libcups2-dev \
+    x11vnc
 
 # Instal·la Node.js i npm si no estan instal·lats
 if ! command -v node &> /dev/null; then
