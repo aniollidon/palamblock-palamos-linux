@@ -185,6 +185,7 @@ echo "Servei d'usuari creat per: $SERVICE_RUN_USER (estat: $( [ "$ENABLE_OK" = t
 echo "Creant servei x11vnc (si existeix /usr/bin/x11vnc)..."
 if command -v x11vnc >/dev/null 2>&1; then
     mkdir -p /var/log/palamos-dashboard
+    chown $SERVICE_RUN_USER:$SERVICE_RUN_USER /var/log/palamos-dashboard
     cat > /etc/systemd/system/x11vnc.service << X11VNC
 [Unit]
 Description=VNC Server for X11 (x11vnc :5900)
@@ -196,10 +197,12 @@ Wants=network-online.target
 Type=simple
 User=$SERVICE_RUN_USER
 Group=$SERVICE_RUN_USER
-ExecStart=/usr/bin/x11vnc -auth /run/user/$UID_NUM/gdm/Xauthority -forever -loop -noxdamage -repeat -display $DISPLAY_VALUE -rfbauth /etc/x11vnc.pwd -rfbport 5900 -shared -o /var/log/palamos-dashboard/x11vnc.log
+ExecStart=/usr/bin/x11vnc -auth /run/user/$UID_NUM/gdm/Xauthority -forever -loop -noxdamage -repeat -display $DISPLAY_VALUE -rfbauth /etc/x11vnc.pwd -rfbport 5900 -shared
 ExecStop=/usr/bin/killall x11vnc
 Restart=on-failure
 RestartSec=5
+StandardOutput=append:/var/log/palamos-dashboard/x11vnc.log
+StandardError=append:/var/log/palamos-dashboard/x11vnc.log
 
 [Install]
 WantedBy=multi-user.target

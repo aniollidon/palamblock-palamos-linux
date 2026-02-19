@@ -26,16 +26,16 @@ El servei ara és EXCLUSIVAMENT d'usuari (no sistema). Necessites indicar quin u
 
 1. Instal·la dependències: `./install-dependencies-ubuntu.sh`
 2. Compila: `npm run build`
-3. Instal·la la unitat (com a root perquè copia a `/opt`):
-
-```bash
-sudo ./install-service-linux.sh --user <usuari_escriptori> --display :0
-```
-
-4. Caldrà posar la contrassenya a x11vnc
+3. Caldrà posar la contrassenya a x11vnc
 
 ```bash
 sudo x11vnc -storepasswd <contrasenya> /etc/x11vnc.pwd
+```
+
+4. Instal·la la unitat (com a root perquè copia a `/opt`):
+
+```bash
+sudo ./install-service-linux.sh --user <usuari_escriptori> --display :0
 ```
 
 5. Si durant la instal·lació encara no hi havia sessió gràfica d'aquest usuari veuràs estat "pendent".
