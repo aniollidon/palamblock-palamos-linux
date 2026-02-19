@@ -180,6 +180,42 @@ else
 fi
 
 echo "Servei d'usuari creat per: $SERVICE_RUN_USER (estat: $( [ "$ENABLE_OK" = true ] && echo 'habilitat' || echo 'pendent' ))"
+
+# ---------- Servei x11vnc (servidor VNC al port 5900) ----------
+echo "Creant servei x11vnc (si existeix /usr/bin/x11vnc)..."
+if command -v x11vnc >/dev/null 2>&1; then
+    mkdir -p /var/log/palamos-dashboard
+    cat > /etc/systemd/system/x11vnc.service << X11VNC
+[Unit]
+Description=VNC Server for X11 (x11vnc :5900)
+Requires=display-manager.service
+After=display-manager.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=$SERVICE_RUN_USER
+Group=$SERVICE_RUN_USER
+ExecStart=/usr/bin/x11vnc -auth /run/user/$UID_NUM/gdm/Xauthority -forever -loop -noxdamage -repeat -display $DISPLAY_VALUE -rfbauth /etc/x11vnc.pwd -rfbport 5900 -shared -o /var/log/palamos-dashboard/x11vnc.log
+ExecStop=/usr/bin/killall x11vnc
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+X11VNC
+    systemctl daemon-reload
+    systemctl enable x11vnc.service
+    echo "Servei x11vnc creat i habilitat."
+    if [ ! -f /etc/x11vnc.pwd ]; then
+        echo "AVÍS: No existeix /etc/x11vnc.pwd. Crea'l amb: sudo x11vnc -storepasswd <contrasenya> /etc/x11vnc.pwd"
+    fi
+else
+    echo "x11vnc no instal·lat (/usr/bin/x11vnc no trobat). Ometent servei x11vnc."
+    echo "Instal·la'l amb: sudo apt install x11vnc"
+fi
+
+# ---------- Servei novnc-proxy (WebSocket :6080 → VNC :5900) ----------
 echo "Creant servei addicional novnc-proxy (si existeix /home/super/noVNC/utils/novnc_proxy)..."
     if [ -x /home/super/noVNC/utils/novnc_proxy ]; then
         mkdir -p /var/log/palamos-dashboard
@@ -208,6 +244,11 @@ NOVNC
     else
         echo "No s'ha trobat /home/super/noVNC/utils/novnc_proxy. Ometent servei novnc-proxy."
     fi
+
+echo "Iniciant serveis..."
+sudo systemctl start x11vnc
+sudo systemctl start novnc-proxy
+
 echo
 echo "Com a $SERVICE_RUN_USER després del primer login executa (si estat pendent):"
 if [ "$ENABLE_OK" = false ]; then
