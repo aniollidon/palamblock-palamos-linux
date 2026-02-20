@@ -163,6 +163,9 @@ UID_NUM=$(id -u "$SERVICE_RUN_USER")
 USER_RUNTIME_DIR="/run/user/$UID_NUM"
 ENABLE_OK=false
 
+sudo chmod 4755 /opt/palamos-dashboard/chrome-sandbox
+sudo chown root:root /opt/palamos-dashboard/chrome-sandbox
+
 echo "Verificant sessió d'usuari (XDG_RUNTIME_DIR)..."
 if [ -d "$USER_RUNTIME_DIR" ]; then
     echo "Directori $USER_RUNTIME_DIR present. Intentant habilitar unitat d'usuari..."
@@ -177,8 +180,54 @@ else
 fi
 
 echo "Servei d'usuari creat per: $SERVICE_RUN_USER (estat: $( [ "$ENABLE_OK" = true ] && echo 'habilitat' || echo 'pendent' ))"
+
+# ---------- Servei wayvnc (servidor VNC al port 5900) ----------
+echo "Creant servei wayvnc (si existeix /usr/bin/wayvnc)..."
+if [ "$XDG_SESSION_TYPE" = "wayland" ] || [ -n "$WAYLAND_DISPLAY" ] || command -v wayvnc >/dev/null 2>&1; then
+    echo "Detectat entorn Wayland. Creant servei wayvnc (si existeix /usr/bin/wayvnc)..."
+    if command -v wayvnc >/dev/null 2>&1; then
+        mkdir -p /var/log/palamos-dashboard
+        chown $SERVICE_RUN_USER:$SERVICE_RUN_USER /var/log/palamos-dashboard
+        USER_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
+        USER_UNIT_DIR="$USER_HOME/.config/systemd/user"
+        mkdir -p "$USER_UNIT_DIR"
+        chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER "$USER_UNIT_DIR"
+    [ -n "$UID_NUM" ] || UID_NUM=$(id -u "$SERVICE_RUN_USER")
+        cat > "$USER_UNIT_DIR/wayvnc.service" << WAYVNC
+[Unit]
+Description=VNC Server for Wayland (wayvnc :5900)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+    Environment=WAYLAND_DISPLAY=wayland-0
+    Environment=XDG_RUNTIME_DIR=/run/user/$UID_NUM
+    ExecStart=/usr/bin/wayvnc 0.0.0.0 5900
+    Restart=on-failure
+    RestartSec=5
+    StandardOutput=append:/var/log/palamos-dashboard/wayvnc.log
+    StandardError=append:/var/log/palamos-dashboard/wayvnc.log
+
+[Install]
+WantedBy=default.target
+WAYVNC
+        chown $SERVICE_RUN_USER:$SERVICE_RUN_USER "$USER_UNIT_DIR/wayvnc.service"
+        sudo -u "$SERVICE_RUN_USER" XDG_RUNTIME_DIR="/run/user/$UID_NUM" systemctl --user daemon-reload
+        sudo -u "$SERVICE_RUN_USER" XDG_RUNTIME_DIR="/run/user/$UID_NUM" systemctl --user enable wayvnc.service
+        echo "Servei wayvnc creat i habilitat per a l'usuari $SERVICE_RUN_USER. Inicia'l amb: sudo -u $SERVICE_RUN_USER XDG_RUNTIME_DIR=/run/user/$UID_NUM systemctl --user start wayvnc.service"
+    else
+        echo "wayvnc no instal·lat (/usr/bin/wayvnc no trobat). Ometent servei wayvnc. Instal·la'l amb: sudo apt install wayvnc"
+    fi
+else
+    echo "No s'ha detectat entorn Wayland ni wayvnc. Ometent servei VNC."
+fi
+
+# ---------- Servei novnc-proxy (WebSocket :6080 → VNC :5900) ----------
 echo "Creant servei addicional novnc-proxy (si existeix /home/super/noVNC/utils/novnc_proxy)..."
     if [ -x /home/super/noVNC/utils/novnc_proxy ]; then
+        mkdir -p /var/log/palamos-dashboard
         cat > /etc/systemd/system/novnc-proxy.service << NOVNC
 [Unit]
 Description=noVNC proxy (localhost:5900 -> websocket 6080)
@@ -204,6 +253,11 @@ NOVNC
     else
         echo "No s'ha trobat /home/super/noVNC/utils/novnc_proxy. Ometent servei novnc-proxy."
     fi
+
+echo "Iniciant serveis..."
+sudo systemctl start wayvnc
+sudo systemctl start novnc-proxy
+
 echo
 echo "Com a $SERVICE_RUN_USER després del primer login executa (si estat pendent):"
 if [ "$ENABLE_OK" = false ]; then
