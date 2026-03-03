@@ -1,3 +1,10 @@
+## 🚫 Anti-circumvention notice
+This tool is intended for educational use.
+Instructions for disabling, bypassing, or uninstalling it without authorization
+are intentionally not documented.
+
+If you are a student attempting to disable this tool, please contact your teacher.
+
 # PalamOS Dashboard - Aplicació Electron
 
 Aplicació Electron que funciona com a servei (unitat d'usuari systemd) per a PalamOS, connectant-se amb un servidor WebSocket i mostrant un dashboard a pantalla completa controlat remotament.
