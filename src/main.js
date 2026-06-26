@@ -28,9 +28,85 @@ let username = "unknown";
 let isDisplayOpen = false;
 let allowCloseDisplay = false;
 let isLoggedIn = false;
+let examSessionTimer = null;
+const examSession = {
+  active: false,
+  user: null,
+  displayName: null,
+  startedAt: null,
+  expiresAt: null,
+};
 
 // Configuració de l'aplicació
 const isDev = process.argv.includes("--dev");
+
+function isExamBaseUser() {
+  return typeof username === "string" && username.startsWith("examen");
+}
+
+function isExamUserName(userValue) {
+  return typeof userValue === "string" && userValue.startsWith("examen");
+}
+
+function getSessionPayloadForServer() {
+  if (!isExamBaseUser()) return undefined;
+  return {
+    active: examSession.active,
+    user: examSession.user,
+    displayName: examSession.displayName,
+    expiresAt: examSession.expiresAt,
+  };
+}
+
+function clearExamSessionTimer() {
+  if (examSessionTimer) {
+    clearTimeout(examSessionTimer);
+    examSessionTimer = null;
+  }
+}
+
+function resetExamSession(reason = "manual") {
+  clearExamSessionTimer();
+  examSession.active = false;
+  examSession.user = null;
+  examSession.displayName = null;
+  examSession.startedAt = null;
+  examSession.expiresAt = null;
+
+  if (socket && socket.connected) {
+    socket.emit("session_change", {
+      active: false,
+      user: null,
+      displayName: null,
+      reason,
+    });
+  }
+}
+
+function startExamSession(user, displayName, ttlHours = 3) {
+  clearExamSessionTimer();
+  examSession.active = true;
+  examSession.user = user;
+  examSession.displayName = displayName || null;
+  examSession.startedAt = new Date().toISOString();
+  examSession.expiresAt = new Date(
+    Date.now() + ttlHours * 60 * 60 * 1000
+  ).toISOString();
+
+  examSessionTimer = setTimeout(() => {
+    logger.info("Sessio temporal d'examen expirada");
+    resetExamSession("expired");
+  }, ttlHours * 60 * 60 * 1000);
+
+  if (socket && socket.connected) {
+    socket.emit("session_change", {
+      active: true,
+      user,
+      displayName,
+      expiresAt: examSession.expiresAt,
+    });
+  }
+}
 
 function createLoginWindow() {
   loginWindow = new BrowserWindow({
@@ -304,6 +380,7 @@ function checkIPChanges() {
             ip: currentIP,
             ssid: ssid,
             username: username,
+            session: getSessionPayloadForServer(),
           });
           // Si canviem de xarxa hem de tornar a comprovar si la pantalla s'hauria de veure:
           checkCastActive();
@@ -349,6 +426,7 @@ function connectToServer() {
       ip: currentIP,
       ssid: ssid,
       alumne: username,
+      session: getSessionPayloadForServer(),
     });
 
     // Després de registrar verifiquem sempre
@@ -554,9 +632,43 @@ ipcMain.handle("get-ip", () => {
 });
 
 ipcMain.handle("get-username", () => {
-  const username = getUsername();
   logger.debug("get-username cridat, retornant:", username);
   return username;
+});
+
+ipcMain.handle("start-exam-session", async (_event, payload) => {
+  // TODO(OAuth): validar la identitat amb Google OAuth/OIDC i no només amb dades entrades al formulari.
+  const baseUser =
+    (payload && payload.baseUser) || username || getUsername() || "unknown";
+  if (!isExamUserName(baseUser)) {
+    return { ok: false, reason: "not-exam-user" };
+  }
+
+  const sessionUser = (payload && payload.user) || null;
+  const displayName = (payload && payload.displayName) || null;
+  const ttlHours =
+    payload && Number.isFinite(Number(payload.ttlHours))
+      ? Number(payload.ttlHours)
+      : 3;
+
+  if (!sessionUser) {
+    return { ok: false, reason: "missing-user" };
+  }
+
+  startExamSession(sessionUser, displayName, ttlHours);
+  return { ok: true, session: { ...examSession } };
+});
+
+ipcMain.handle("end-exam-session", () => {
+  resetExamSession("manual-end");
+  return { ok: true };
+});
+
+ipcMain.handle("get-exam-session", () => {
+  return {
+    isExamUser: isExamBaseUser(),
+    ...examSession,
+  };
 });
 
 // Retorna la URL del servidor definida a .env per al display/viewer

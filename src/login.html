@@ -16,15 +16,19 @@
         .top:after { transform: rotate(135deg); background: #FFB400; }
         .bottom:before { transform: rotate(-45deg); background: #00A6ED; }
         .bottom:after { transform: rotate(-135deg); background: #7FB800; }
-        .center { position: absolute; width: 400px; height: 420px; top: 50%; left: 50%; margin-left: -200px; margin-top: -210px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; opacity: 1; color: #333; background: rgba(255, 255, 255, 0.9); border-radius: 10px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); }
+        .center { position: absolute; width: 420px; min-height: 420px; top: 50%; left: 50%; margin-left: -210px; margin-top: -210px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; opacity: 1; color: #333; background: rgba(255, 255, 255, 0.9); border-radius: 10px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); }
         .center h2 { margin: 0 0 20px 0; color: #333; text-align: center; }
         .center input { width: 100%; padding: 15px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; font-family: inherit; font-size: 16px; }
         .center input:focus { outline: none; border-color: #F6511D; box-shadow: 0 0 5px rgba(246, 81, 29, 0.3); }
         #save { cursor: pointer; background-color: #F6511D; color: white; border: none; font-weight: bold; transition: background-color 0.3s; }
         #save:hover { background-color: #d94a1a; }
         #save:active { background-color: #b73b12; }
+        #startExamSession { cursor: pointer; background-color: #0077b6; color: white; border: none; font-weight: bold; transition: background-color 0.3s; }
+        #startExamSession:hover { background-color: #035f91; }
         .error { color: #F6511D; font-size: 14px; margin-top: 10px; text-align: center; display: none; }
         .success { color: #7FB800; font-size: 14px; margin-top: 10px; text-align: center; display: none; }
+        .helper { color: #4a4a4a; font-size: 13px; margin-top: 8px; text-align: center; }
+        #examStep { display: none; width: 100%; }
     </style>
 </head>
 <body>
@@ -36,6 +40,13 @@
             <input type="text" placeholder="Nom d'usuari" id="username" />
             <input type="password" placeholder="Contrasenya" id="password" />
             <input type="submit" value="Registra" id="save" />
+            <div id="examStep">
+                <h2 style="margin-top:16px;">Sessió d'examen</h2>
+                <input type="email" placeholder="Correu @inspalamos.cat" id="examEmail" />
+                <input type="text" placeholder="Nom i cognoms visibles a l'admin" id="examDisplayName" />
+                <input type="submit" value="Inicia sessió temporal" id="startExamSession" />
+                <div class="helper">Aquesta sessió expira automàticament al cap de 3 hores.</div>
+            </div>
             <div id="error" class="error"></div>
             <div id="success" class="success"></div>
         </div>
@@ -88,6 +99,51 @@
             errorEl.style.display = 'none';
         }
 
+        function isExamBaseUser(value) {
+            return typeof value === 'string' && value.startsWith('examen');
+        }
+
+        function showExamStep() {
+            document.getElementById('username').style.display = 'none';
+            document.getElementById('password').style.display = 'none';
+            document.getElementById('save').style.display = 'none';
+            document.getElementById('examStep').style.display = 'block';
+            document.getElementById('examEmail').focus();
+        }
+
+        async function startExamSession(baseUser) {
+            const examEmail = document.getElementById('examEmail').value.trim().toLowerCase();
+            const examDisplayName = document.getElementById('examDisplayName').value.trim();
+
+            // TODO(OAuth): substituir aquesta validacio de domini per autenticacio Google OAuth/OIDC real.
+            if (!examEmail.endsWith('@inspalamos.cat')) {
+                showError("El correu ha de ser del domini @inspalamos.cat");
+                return;
+            }
+
+            if (!examDisplayName) {
+                showError("Cal indicar el nom que es mostrarà a l'admin");
+                return;
+            }
+
+            const started = await ipcRenderer.invoke('start-exam-session', {
+                baseUser,
+                user: examEmail,
+                displayName: examDisplayName,
+                ttlHours: 3,
+            });
+
+            if (!started || !started.ok) {
+                showError("No s'ha pogut iniciar la sessió temporal d'examen");
+                return;
+            }
+
+            showSuccess("Sessió temporal iniciada");
+            setTimeout(() => {
+                ipcRenderer.invoke('login-completed');
+            }, 600);
+        }
+
         async function saveUser() {
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
@@ -118,6 +174,12 @@
                     return;
                 }
 
+                if (isExamBaseUser(username)) {
+                    showSuccess("Usuari examen registrat. Cal iniciar la sessió temporal.");
+                    showExamStep();
+                    return;
+                }
+
                 showSuccess("Usuari registrat correctament");
                 setTimeout(() => {
                     ipcRenderer.invoke('login-completed');
@@ -128,7 +190,20 @@
         }
 
         document.getElementById('save').addEventListener('click', saveUser);
-        document.addEventListener('keydown', function(e) { if (e.key === 'Enter') saveUser(); });
+        document.getElementById('startExamSession').addEventListener('click', async () => {
+            const baseUser = (document.getElementById('username').value || '').trim();
+            await startExamSession(baseUser);
+        });
+        document.addEventListener('keydown', async function(e) {
+            if (e.key !== 'Enter') return;
+            const examVisible = document.getElementById('examStep').style.display === 'block';
+            if (examVisible) {
+                const baseUser = (document.getElementById('username').value || '').trim();
+                await startExamSession(baseUser);
+                return;
+            }
+            saveUser();
+        });
         document.getElementById('username').focus();
     </script>
 </body>
