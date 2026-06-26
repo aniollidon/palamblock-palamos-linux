@@ -88,12 +88,26 @@ function isExamUserName(userValue) {
   return typeof userValue === "string" && userValue.startsWith("examen");
 }
 
+function normalizeTextValue(value) {
+  if (typeof value === "string") {
+    return value.replace(/(\r\n|\n|\r)/gm, "").trim();
+  }
+
+  if (value && typeof value === "object") {
+    return normalizeTextValue(
+      value.displayName ?? value.name ?? value.user ?? value.label ?? value.text ?? value.value
+    );
+  }
+
+  return null;
+}
+
 function getSessionPayloadForServer() {
   if (!isExamBaseUser()) return undefined;
   return {
     active: examSession.active,
-    user: examSession.user,
-    displayName: examSession.displayName,
+    user: normalizeTextValue(examSession.user),
+    displayName: normalizeTextValue(examSession.displayName),
     expiresAt: examSession.expiresAt,
   };
 }
@@ -126,8 +140,8 @@ function resetExamSession(reason = "manual") {
 function startExamSession(user, displayName, ttlHours = 3) {
   clearExamSessionTimer();
   examSession.active = true;
-  examSession.user = user;
-  examSession.displayName = displayName || null;
+  examSession.user = normalizeTextValue(user);
+  examSession.displayName = normalizeTextValue(displayName);
   examSession.startedAt = new Date().toISOString();
   examSession.expiresAt = new Date(
     Date.now() + ttlHours * 60 * 60 * 1000
@@ -141,8 +155,8 @@ function startExamSession(user, displayName, ttlHours = 3) {
   if (socket && socket.connected) {
     socket.emit("session_change", {
       active: true,
-      user,
-      displayName,
+      user: normalizeTextValue(user),
+      displayName: normalizeTextValue(displayName),
       expiresAt: examSession.expiresAt,
     });
   }
@@ -686,8 +700,8 @@ ipcMain.handle("start-exam-session", async (_event, payload) => {
     return { ok: false, reason: "not-exam-user" };
   }
 
-  const sessionUser = (payload && payload.user) || null;
-  const displayName = (payload && payload.displayName) || null;
+  const sessionUser = normalizeTextValue(payload && payload.user);
+  const displayName = normalizeTextValue(payload && payload.displayName);
   const ttlHours =
     payload && Number.isFinite(Number(payload.ttlHours))
       ? Number(payload.ttlHours)
