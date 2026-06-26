@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, globalShortcut } = require("electron");
+const { app, BrowserWindow, ipcMain, globalShortcut, powerMonitor } = require("electron");
 const os = require("os");
 const ip = require("ip");
 const io = require("socket.io-client");
@@ -225,16 +225,79 @@ function closeDisplayWindow() {
   }
 }
 
+let ipCheckIntervalId = null;
+let castSocket = null;
+let castTimeoutId = null;
+
+function checkCastActive() {
+  // Neteja agressiva d'intents de resolució previs per evitar leaks
+  if (castTimeoutId) clearTimeout(castTimeoutId);
+  if (castSocket) {
+    try { castSocket.close(); } catch {}
+  }
+
+  const castBase = (process.env.SERVER_PALAMBLOCK || "http://localhost:3000").replace(/\/$/, "");
+  castSocket = io.connect(castBase, {
+    path: "/ws-cast",
+    transports: ["websocket"],
+    forceNew: true // Assegura una nova connexió que no es recicli erròniament
+  });
+
+  let answered = false;
+
+  castSocket.on("connect", () => {
+    logger.debug("ws-cast connectat, consultant emissió activa...");
+    castSocket.emit("cast-active-query", { alumne: username }, (res) => {
+      answered = true;
+      if (res && res.active) {
+        logger.info("Emissió activa detectada (ws-cast).");
+        if (!isDisplayOpen) createDisplayWindow();
+      } else {
+        logger.info("Cap emissió activa en iniciar (ws-cast).");
+      }
+      closeCastSocket();
+    });
+  });
+
+  castSocket.on("connect_error", () => {
+    logger.warn("No s'ha pogut verificar seqüència d'emissió (connect_error a ws-cast).");
+    closeCastSocket();
+  });
+
+  // Seguretat en cas que el servidor no respongui al 'cast-active-query'
+  castTimeoutId = setTimeout(() => {
+    if (!answered) {
+      logger.warn("Timeout de xarxa assolit esperant ws-cast.");
+      closeCastSocket();
+    }
+  }, 5000);
+}
+
+function closeCastSocket() {
+  if (castTimeoutId) clearTimeout(castTimeoutId);
+  if (castSocket) {
+    try { castSocket.close(); } catch {}
+    castSocket = null; // Lliurem de memòria l'objecte
+  }
+}
+
 function checkIPChanges() {
-  setInterval(async () => {
+  if (ipCheckIntervalId) clearInterval(ipCheckIntervalId);
+  ipCheckIntervalId = setInterval(async () => {
     try {
       const newIP = ip.address();
-      if (newIP !== currentIP) {
-        currentIP = newIP;
-        logger.info("IP canviada a: " + currentIP);
+      
+      // Filtrem falsos diagnòstics quan l'equip cau momentàniament
+      if (!newIP || newIP === '127.0.0.1') return;
 
+      if (newIP !== currentIP) {
+        logger.info("Nova xarxa detectada i estabilitzada TCP. IP: " + newIP);
+        currentIP = newIP;
+        const ssid = await getCurrentSSID();
+
+        // En lloc de tancar/obrir de pitjor forma, aprofitem el protocol de Socket.io
         if (socket && socket.connected) {
-          const ssid = await getCurrentSSID();
+          logger.info("Notificant canvi de xarxa al servidor ws-os...");
           socket.emit("updateOS", {
             version: app.getVersion(),
             os: os.platform(),
@@ -242,12 +305,18 @@ function checkIPChanges() {
             ssid: ssid,
             username: username,
           });
+          // Si canviem de xarxa hem de tornar a comprovar si la pantalla s'hauria de veure:
+          checkCastActive();
+        } else if (socket) {
+          // Cas límit: Si la IP és nova però el socket ha col·lapsat internament
+          socket.disconnect();
+          socket.connect();
         }
       }
     } catch (err) {
-      logger.error("Error comprovant IP:", err);
+      logger.error("Error comprovant IP fons:", err);
     }
-  }, (process.env.IP_CHECK_INTERVAL || 30) * 1000);
+  }, (process.env.IP_CHECK_INTERVAL || 15) * 1000); // Execució àgil de monitorització
 }
 
 function connectToServer() {
@@ -256,22 +325,24 @@ function connectToServer() {
   socket = io.connect(serverUrl, {
     transports: ["websocket"],
     path: "/ws-os",
+    reconnection: true,     // Fem que socket.IO ho gestioni a baix nivell
+    reconnectionDelay: 2000,
+    reconnectionDelayMax: 10000,
   });
 
+  // Assignem el Gos de Guarda NOMÉS un cop, independent de l'estatus actual del WebSocket
+  checkIPChanges();
+
   socket.on("connect", async () => {
-    logger.info("Connectat al servidor");
+    logger.info("Connectat al protocol ws-os");
     username = getUsername();
-    currentIP = ip.address();
+    
+    // Obtenim informació fiable només si hi és
+    const loopBackIgnore = ip.address();
+    currentIP = (loopBackIgnore !== '127.0.0.1') ? loopBackIgnore : currentIP;
     const ssid = await getCurrentSSID();
 
-    logger.info("Enviant dades al servidor", {
-      version: app.getVersion(),
-      os: os.platform(),
-      ip: currentIP,
-      ssid: ssid,
-      alumne: username,
-    });
-
+    logger.info("Enviant metadades segures de sessió (" + username + ")");
     socket.emit("registerOS", {
       version: app.getVersion(),
       os: os.platform(),
@@ -280,51 +351,8 @@ function connectToServer() {
       alumne: username,
     });
 
-    // Inicia la comprovació d'IP
-    checkIPChanges();
-
-    // Després de registrar la màquina, comprova via ws-cast si hi ha emissió activa
-    try {
-      const castBase = (
-        process.env.SERVER_PALAMBLOCK || "http://localhost:3000"
-      ).replace(/\/$/, "");
-      const castSocket = io.connect(castBase, {
-        path: "/ws-cast",
-        transports: ["websocket"],
-      });
-      let answered = false;
-      castSocket.on("connect", () => {
-        try {
-          castSocket.emit("cast-active-query", { alumne: username }, (res) => {
-            answered = true;
-            if (res && res.active) {
-              logger.info("Emissió activa detectada (ws-cast):", res);
-              if (!isDisplayOpen) createDisplayWindow();
-            } else {
-              logger.info("Cap emissió activa en iniciar (ws-cast).");
-            }
-            try {
-              castSocket.close();
-            } catch {}
-          });
-        } catch (e) {
-          logger.error("Error enviant cast-active-query:", e.message);
-        }
-      });
-      // Timeout de seguretat
-      setTimeout(() => {
-        if (!answered) {
-          try {
-            castSocket.close();
-          } catch {}
-        }
-      }, 4000);
-    } catch (e) {
-      logger.error(
-        "Error comprovant emissió activa (ws-cast):",
-        e && e.message
-      );
-    }
+    // Després de registrar verifiquem sempre
+    checkCastActive();
   });
 
   socket.on("execute", (data) => {
@@ -389,11 +417,11 @@ function connectToServer() {
   });
 
   socket.on("connect_error", (error) => {
-    logger.error("Error de connexió:", error.message);
+    logger.error("Dificultat accedint al WebSocket (ws-os):", error.message);
   });
 
-  socket.on("disconnect", () => {
-    logger.info("Desconnectat del servidor");
+  socket.on("disconnect", (reason) => {
+    logger.info("Desconnectat de ws-os per:", reason);
   });
 }
 
@@ -472,6 +500,33 @@ app.whenReady().then(() => {
   globalShortcut.register("Ctrl+Alt+Delete", () => {
     logger.debug("Ctrl+Alt+Delete desactivat");
     return false;
+  });
+
+  // Lògica blindada per recuperar xarxa al despertar d'una suspensió
+  powerMonitor.on('resume', () => {
+    logger.info('Sistema despertat (resume). Esperant a obtenir una IP vàlida per reconectar...');
+    if (socket) {
+      socket.disconnect(); // Tallem estricament qualsevol túnel zombie
+    }
+    
+    let retries = 0;
+    const wakeInterval = setInterval(() => {
+      const testIP = ip.address();
+      // Esperem fins que se'ns assigni una IP real rutable al negociar l'adreça al router
+      if (testIP && testIP !== '127.0.0.1') {
+        clearInterval(wakeInterval);
+        logger.info('IP establerta després de suspensió en ' + retries + 's. Resumint: ' + testIP);
+        if (socket) socket.connect();
+      }
+      
+      retries++;
+      if (retries > 30) {
+        // Fallback contingència: Si passen 30 segons i no detectem res, força-ho igualment
+        clearInterval(wakeInterval);
+        logger.warn('Timeout de xarxa en tornar. Intentem reconnectar a cegues.');
+        if (socket) socket.connect();
+      }
+    }, 1000);
   });
 });
 
