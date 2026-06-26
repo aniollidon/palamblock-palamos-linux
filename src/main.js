@@ -14,6 +14,11 @@ const { autoUpdater } = require("electron-updater");
 const log = require("electron-log");
 require("dotenv").config();
 
+const DEFAULT_SERVER_URL =
+  process.env.SERVER_PALAMBLOCK || "http://192.168.0.103:4000";
+const SECONDARY_SERVER_URL =
+  process.env.SERVER_PALAMBLOCK_ALT || "https://palamblock.online";
+
 // Configuració del logger per l'autoUpdater
 log.transports.file.level = "info";
 autoUpdater.logger = log;
@@ -28,6 +33,7 @@ let username = "unknown";
 let isDisplayOpen = false;
 let allowCloseDisplay = false;
 let isLoggedIn = false;
+let selectedServerUrl = DEFAULT_SERVER_URL;
 let examSessionTimer = null;
 const examSession = {
   active: false,
@@ -39,6 +45,40 @@ const examSession = {
 
 // Configuració de l'aplicació
 const isDev = process.argv.includes("--dev");
+
+function normalizeServerUrl(rawUrl) {
+  const value = String(rawUrl || "").trim();
+  if (!value) return DEFAULT_SERVER_URL;
+  if (/^https?:\/\//i.test(value) || /^wss?:\/\//i.test(value)) return value;
+  return `https://${value}`;
+}
+
+function getApiBaseFromServerUrl(rawUrl) {
+  return normalizeServerUrl(rawUrl);
+}
+
+function getSocketBaseFromServerUrl(rawUrl) {
+  return normalizeServerUrl(rawUrl);
+}
+
+function getServerPrefFile() {
+  return path.join(app.getPath("userData"), ".server");
+}
+
+function loadServerPreference() {
+  try {
+    const fromFile = fs.readFileSync(getServerPrefFile(), "utf8").trim();
+    if (fromFile) selectedServerUrl = normalizeServerUrl(fromFile);
+  } catch (_err) {
+    selectedServerUrl = normalizeServerUrl(DEFAULT_SERVER_URL);
+  }
+}
+
+function saveServerPreference(url) {
+  selectedServerUrl = normalizeServerUrl(url);
+  fs.writeFileSync(getServerPrefFile(), selectedServerUrl, "utf8");
+  return selectedServerUrl;
+}
 
 function isExamBaseUser() {
   return typeof username === "string" && username.startsWith("examen");
@@ -397,7 +437,7 @@ function checkIPChanges() {
 }
 
 function connectToServer() {
-  const serverUrl = process.env.SERVER_PALAMBLOCK || "ws://localhost:3000";
+  const serverUrl = getSocketBaseFromServerUrl(selectedServerUrl);
 
   socket = io.connect(serverUrl, {
     transports: ["websocket"],
@@ -562,6 +602,8 @@ function unregisterDisplayShortcuts() {
 
 // Events de l'aplicació
 app.whenReady().then(() => {
+  loadServerPreference();
+
   // Comprova si l'usuari està logat
   username = getUsername();
   if (username && username !== "unknown") {
@@ -673,16 +715,36 @@ ipcMain.handle("get-exam-session", () => {
 
 // Retorna la URL del servidor definida a .env per al display/viewer
 ipcMain.handle("get-server-url", () => {
-  const serverUrl = process.env.SERVER_PALAMBLOCK || "http://localhost:3000";
+  const serverUrl = selectedServerUrl;
   logger.debug("get-server-url cridat, retornant:", serverUrl);
   return serverUrl;
+});
+
+ipcMain.handle("get-server-options", () => {
+  return {
+    primary: normalizeServerUrl(DEFAULT_SERVER_URL),
+    secondary: normalizeServerUrl(SECONDARY_SERVER_URL),
+    selected: normalizeServerUrl(selectedServerUrl),
+  };
+});
+
+ipcMain.handle("set-server-url", (_event, serverUrl) => {
+  try {
+    const saved = saveServerPreference(serverUrl);
+    logger.info("Servidor seleccionat:", saved);
+    return { ok: true, serverUrl: saved };
+  } catch (error) {
+    logger.error("Error guardant servidor:", error);
+    return { ok: false, error: error.message };
+  }
 });
 
 // Valida les credencials contra l'API
 ipcMain.handle("validate-credentials", async (event, payload) => {
   const username = (payload && payload.username) || "";
   const password = (payload && payload.password) || "";
-  const apiBase = process.env.SERVER_PALAMBLOCK || "http://localhost:3000";
+  const selectedUrlFromUi = payload && payload.serverUrl;
+  const apiBase = getApiBaseFromServerUrl(selectedUrlFromUi || selectedServerUrl);
   try {
     const resp = await axios.post(
       `${apiBase}/api/v1/alumne/auth`,

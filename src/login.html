@@ -19,6 +19,7 @@
         .center { position: absolute; width: 420px; min-height: 420px; top: 50%; left: 50%; margin-left: -210px; margin-top: -210px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; opacity: 1; color: #333; background: rgba(255, 255, 255, 0.9); border-radius: 10px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); }
         .center h2 { margin: 0 0 20px 0; color: #333; text-align: center; }
         .center input { width: 100%; padding: 15px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; font-family: inherit; font-size: 16px; }
+        .center select { width: 100%; padding: 15px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; font-family: inherit; font-size: 16px; }
         .center input:focus { outline: none; border-color: #F6511D; box-shadow: 0 0 5px rgba(246, 81, 29, 0.3); }
         #save { cursor: pointer; background-color: #F6511D; color: white; border: none; font-weight: bold; transition: background-color 0.3s; }
         #save:hover { background-color: #d94a1a; }
@@ -37,6 +38,8 @@
         <div class="bottom"></div>
         <div class="center">
             <h2>Autentifica aquest ordinador</h2>
+            <input type="text" placeholder="Servidor (ex: http://localhost:3000)" id="serverUrl" list="serverUrlOptions" />
+            <datalist id="serverUrlOptions"></datalist>
             <input type="text" placeholder="Nom d'usuari" id="username" />
             <input type="password" placeholder="Contrasenya" id="password" />
             <input type="submit" value="Registra" id="save" />
@@ -104,11 +107,38 @@
         }
 
         function showExamStep() {
+            document.getElementById('serverUrl').style.display = 'none';
             document.getElementById('username').style.display = 'none';
             document.getElementById('password').style.display = 'none';
             document.getElementById('save').style.display = 'none';
             document.getElementById('examStep').style.display = 'block';
             document.getElementById('examEmail').focus();
+        }
+
+        function normalizeServerUrl(rawUrl) {
+            const value = String(rawUrl || '').trim();
+            if (!value) return '';
+            if (/^https?:\/\//i.test(value) || /^wss?:\/\//i.test(value)) return value;
+            return `https://${value}`;
+        }
+
+        async function loadServerOptions() {
+            const options = await ipcRenderer.invoke('get-server-options');
+            const input = document.getElementById('serverUrl');
+            const datalist = document.getElementById('serverUrlOptions');
+
+            const values = [];
+            if (options?.primary) values.push(options.primary);
+            if (options?.secondary) values.push(options.secondary);
+
+            datalist.innerHTML = '';
+            for (const value of values) {
+                const option = document.createElement('option');
+                option.value = value;
+                datalist.appendChild(option);
+            }
+
+            input.value = options?.selected || options?.primary || 'https://palamblock.online';
         }
 
         async function startExamSession(baseUser) {
@@ -147,15 +177,22 @@
         async function saveUser() {
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
+            const serverUrl = normalizeServerUrl(document.getElementById('serverUrl').value);
 
-            if (username === '' || password === '') {
-                showError("Cal especificar usuari i contrasenya");
+            if (serverUrl === '' || username === '' || password === '') {
+                showError("Cal especificar servidor, usuari i contrasenya");
                 return;
             }
 
             try {
                 // 1) Valida contra el servidor
-                const validation = await ipcRenderer.invoke('validate-credentials', { username, password });
+                const serverSaved = await ipcRenderer.invoke('set-server-url', serverUrl);
+                if (!serverSaved || !serverSaved.ok) {
+                    showError("No s'ha pogut guardar el servidor seleccionat");
+                    return;
+                }
+
+                const validation = await ipcRenderer.invoke('validate-credentials', { username, password, serverUrl });
                 if (!validation || !validation.ok) {
                     if (validation && validation.reason === 'invalid') {
                         showError("Credencials incorrectes");
@@ -205,6 +242,7 @@
             saveUser();
         });
         document.getElementById('username').focus();
+        loadServerOptions();
     </script>
 </body>
 </html>
