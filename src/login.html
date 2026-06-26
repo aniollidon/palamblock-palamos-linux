@@ -29,6 +29,8 @@
         .error { color: #F6511D; font-size: 14px; margin-top: 10px; text-align: center; display: none; }
         .success { color: #7FB800; font-size: 14px; margin-top: 10px; text-align: center; display: none; }
         .helper { color: #4a4a4a; font-size: 13px; margin-top: 8px; text-align: center; }
+        .auth-badge { width: 100%; text-align: center; font-size: 12px; font-weight: bold; letter-spacing: 0.08em; color: #6b7280; margin-bottom: 10px; }
+        .auth-subtitle { width: 100%; text-align: center; font-size: 13px; color: #4b5563; margin: -8px 0 14px 0; }
         #examStep { display: none; width: 100%; }
     </style>
 </head>
@@ -37,14 +39,16 @@
         <div class="top"></div>
         <div class="bottom"></div>
         <div class="center">
-            <h2>Autentifica aquest ordinador</h2>
+            <div id="authBadge" class="auth-badge">LOGIN 1 · ORDINADOR</div>
+            <h2 id="authTitle">Autentifica aquest ordinador</h2>
+            <div id="authSubtitle" class="auth-subtitle">Registre persistent del dispositiu amb l'usuari base de PalamBlock.</div>
             <input type="text" placeholder="Servidor (ex: http://localhost:3000)" id="serverUrl" list="serverUrlOptions" />
             <datalist id="serverUrlOptions"></datalist>
             <input type="text" placeholder="Nom d'usuari" id="username" />
             <input type="password" placeholder="Contrasenya" id="password" />
             <input type="submit" value="Registra" id="save" />
             <div id="examStep">
-                <h2 style="margin-top:16px;">Sessió d'examen</h2>
+                <h2 style="margin-top:16px;">Identificació temporal d'examen</h2>
                 <input type="email" placeholder="Correu @inspalamos.cat" id="examEmail" />
                 <input type="text" placeholder="Nom i cognoms visibles a l'admin" id="examDisplayName" />
                 <input type="submit" value="Inicia sessió temporal" id="startExamSession" />
@@ -57,6 +61,7 @@
 
     <script>
         const { ipcRenderer } = require('electron');
+        let loginContext = { examOnly: false, baseUser: '' };
 
         // --- Diagnòstic IPC: mostra a la consola l'estat de la connexió ---
         (function ipcDiagnostics(){
@@ -107,7 +112,9 @@
         }
 
         function showExamStep() {
-            document.getElementById('serverUrl').style.display = 'none';
+            document.getElementById('authBadge').textContent = 'LOGIN 2 · EXAMEN';
+            document.getElementById('authTitle').textContent = 'Identificació temporal d\'examen';
+            document.getElementById('authSubtitle').textContent = 'Aquest pas no canvia l\'usuari base de l\'ordinador; només identifica temporalment l\'alumne de l\'examen.';
             document.getElementById('username').style.display = 'none';
             document.getElementById('password').style.display = 'none';
             document.getElementById('save').style.display = 'none';
@@ -139,6 +146,15 @@
             }
 
             input.value = options?.selected || options?.primary || 'https://palamblock.online';
+        }
+
+        async function loadLoginContext() {
+            loginContext = await ipcRenderer.invoke('get-login-context') || { examOnly: false, baseUser: '' };
+            if (!loginContext.examOnly) return;
+
+            const usernameInput = document.getElementById('username');
+            usernameInput.value = loginContext.baseUser || '';
+            showExamStep();
         }
 
         async function startExamSession(baseUser) {
@@ -228,14 +244,14 @@
 
         document.getElementById('save').addEventListener('click', saveUser);
         document.getElementById('startExamSession').addEventListener('click', async () => {
-            const baseUser = (document.getElementById('username').value || '').trim();
+            const baseUser = (loginContext.examOnly ? loginContext.baseUser : document.getElementById('username').value || '').trim();
             await startExamSession(baseUser);
         });
         document.addEventListener('keydown', async function(e) {
             if (e.key !== 'Enter') return;
             const examVisible = document.getElementById('examStep').style.display === 'block';
             if (examVisible) {
-                const baseUser = (document.getElementById('username').value || '').trim();
+                const baseUser = (loginContext.examOnly ? loginContext.baseUser : document.getElementById('username').value || '').trim();
                 await startExamSession(baseUser);
                 return;
             }
@@ -243,6 +259,7 @@
         });
         document.getElementById('username').focus();
         loadServerOptions();
+        loadLoginContext();
     </script>
 </body>
 </html>

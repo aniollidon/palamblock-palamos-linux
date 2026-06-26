@@ -34,6 +34,7 @@ let isDisplayOpen = false;
 let allowCloseDisplay = false;
 let isLoggedIn = false;
 let selectedServerUrl = DEFAULT_SERVER_URL;
+let currentLoginContext = { examOnly: false, baseUser: "" };
 let examSessionTimer = null;
 const examSession = {
   active: false,
@@ -162,7 +163,13 @@ function startExamSession(user, displayName, ttlHours = 3) {
   }
 }
 
-function createLoginWindow() {
+function createLoginWindow(loginContext = { examOnly: false, baseUser: "" }) {
+  currentLoginContext = {
+    examOnly: Boolean(loginContext?.examOnly),
+    baseUser:
+      typeof loginContext?.baseUser === "string" ? loginContext.baseUser : "",
+  };
+
   loginWindow = new BrowserWindow({
     width: 500,
     height: 600,
@@ -621,13 +628,19 @@ app.whenReady().then(() => {
   // Comprova si l'usuari està logat
   username = getUsername();
   if (username && username !== "unknown") {
+    if (isExamUserName(username)) {
+      logger.info("Usuari examen detectat. Obrint directament login2:", username);
+      createLoginWindow({ examOnly: true, baseUser: username });
+      return;
+    }
+
     logger.info("Usuari ja logat:", username);
     isLoggedIn = true;
     createMainWindow();
     connectToServer();
   } else {
     logger.info("No hi ha usuari logat, mostrant login...");
-    createLoginWindow();
+    createLoginWindow({ examOnly: false, baseUser: "" });
   }
 
   // Registra shortcuts globals per a prevenir sortides (Linux) - sempre actius
@@ -690,6 +703,10 @@ ipcMain.handle("get-ip", () => {
 ipcMain.handle("get-username", () => {
   logger.debug("get-username cridat, retornant:", username);
   return username;
+});
+
+ipcMain.handle("get-login-context", () => {
+  return { ...currentLoginContext };
 });
 
 ipcMain.handle("start-exam-session", async (_event, payload) => {
