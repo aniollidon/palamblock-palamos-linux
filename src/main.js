@@ -113,6 +113,20 @@ function getSessionPayloadForServer() {
   };
 }
 
+function emitSessionChange(reason) {
+  if (!(socket && socket.connected)) return false;
+
+  socket.emit("session_change", {
+    active: examSession.active,
+    user: normalizeTextValue(examSession.user),
+    displayName: normalizeTextValue(examSession.displayName),
+    expiresAt: examSession.expiresAt,
+    reason,
+  });
+
+  return true;
+}
+
 function clearExamSessionTimer() {
   if (examSessionTimer) {
     clearTimeout(examSessionTimer);
@@ -128,14 +142,7 @@ function resetExamSession(reason = "manual") {
   examSession.startedAt = null;
   examSession.expiresAt = null;
 
-  if (socket && socket.connected) {
-    socket.emit("session_change", {
-      active: false,
-      user: null,
-      displayName: null,
-      reason,
-    });
-  }
+  emitSessionChange(reason);
 }
 
 function startExamSession(user, displayName, ttlHours = 3) {
@@ -153,14 +160,7 @@ function startExamSession(user, displayName, ttlHours = 3) {
     resetExamSession("expired");
   }, ttlHours * 60 * 60 * 1000);
 
-  if (socket && socket.connected) {
-    socket.emit("session_change", {
-      active: true,
-      user: normalizeTextValue(user),
-      displayName: normalizeTextValue(displayName),
-      expiresAt: examSession.expiresAt,
-    });
-  }
+  emitSessionChange("login2");
 }
 
 function createLoginWindow(loginContext = { examOnly: false, baseUser: "" }) {
@@ -172,7 +172,7 @@ function createLoginWindow(loginContext = { examOnly: false, baseUser: "" }) {
 
   loginWindow = new BrowserWindow({
     width: 500,
-    height: 600,
+    height: 720,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -373,7 +373,7 @@ function checkCastActive() {
     try { castSocket.close(); } catch {}
   }
 
-  const castBase = (process.env.SERVER_PALAMBLOCK || "http://localhost:3000").replace(/\/$/, "");
+  const castBase = getSocketBaseFromServerUrl(selectedServerUrl).replace(/\/$/, "");
   castSocket = io.connect(castBase, {
     path: "/ws-cast",
     transports: ["websocket"],
@@ -396,8 +396,11 @@ function checkCastActive() {
     });
   });
 
-  castSocket.on("connect_error", () => {
-    logger.warn("No s'ha pogut verificar seqüència d'emissió (connect_error a ws-cast).");
+  castSocket.on("connect_error", (error) => {
+    logger.warn(
+      "No s'ha pogut verificar seqüència d'emissió (connect_error a ws-cast):",
+      error && error.message
+    );
     closeCastSocket();
   });
 
@@ -489,6 +492,11 @@ function connectToServer() {
       alumne: username,
       session: getSessionPayloadForServer(),
     });
+
+    // Si el segon login ja ha iniciat sessió abans de tenir socket, reemeten l'event.
+    if (isExamBaseUser() && examSession.active) {
+      emitSessionChange("login2-connect");
+    }
 
     // Després de registrar verifiquem sempre
     checkCastActive();
@@ -631,13 +639,12 @@ app.whenReady().then(() => {
     if (isExamUserName(username)) {
       logger.info("Usuari examen detectat. Obrint directament login2:", username);
       createLoginWindow({ examOnly: true, baseUser: username });
-      return;
+    } else {
+      logger.info("Usuari ja logat:", username);
+      isLoggedIn = true;
+      createMainWindow();
+      connectToServer();
     }
-
-    logger.info("Usuari ja logat:", username);
-    isLoggedIn = true;
-    createMainWindow();
-    connectToServer();
   } else {
     logger.info("No hi ha usuari logat, mostrant login...");
     createLoginWindow({ examOnly: false, baseUser: "" });

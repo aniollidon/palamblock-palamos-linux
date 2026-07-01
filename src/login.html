@@ -39,7 +39,7 @@
         <div class="top"></div>
         <div class="bottom"></div>
         <div class="center">
-            <div id="authBadge" class="auth-badge">LOGIN 1 · ORDINADOR</div>
+            <div id="authBadge" class="auth-badge">REGISTRE MÀQUINA</div>
             <h2 id="authTitle">Autentifica aquest ordinador</h2>
             <div id="authSubtitle" class="auth-subtitle">Registre persistent del dispositiu amb l'usuari base de PalamBlock.</div>
             <input type="text" placeholder="Servidor (ex: http://localhost:3000)" id="serverUrl" list="serverUrlOptions" />
@@ -48,7 +48,6 @@
             <input type="password" placeholder="Contrasenya" id="password" />
             <input type="submit" value="Registra" id="save" />
             <div id="examStep">
-                <h2 style="margin-top:16px;">Identificació temporal d'examen</h2>
                 <input type="email" placeholder="Correu @inspalamos.cat" id="examEmail" />
                 <input type="text" placeholder="Nom i cognoms visibles a l'admin" id="examDisplayName" />
                 <input type="submit" value="Inicia sessió temporal" id="startExamSession" />
@@ -112,7 +111,7 @@
         }
 
         function showExamStep() {
-            document.getElementById('authBadge').textContent = 'LOGIN 2 · EXAMEN';
+            document.getElementById('authBadge').textContent = 'REGISTRE TEMPORAL';
             document.getElementById('authTitle').textContent = 'Identificació temporal d\'examen';
             document.getElementById('authSubtitle').textContent = 'Aquest pas no canvia l\'usuari base de l\'ordinador; només identifica temporalment l\'alumne de l\'examen.';
             document.getElementById('username').style.display = 'none';
