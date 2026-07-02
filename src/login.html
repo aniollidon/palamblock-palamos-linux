@@ -30,8 +30,115 @@
         .success { color: #7FB800; font-size: 14px; margin-top: 10px; text-align: center; display: none; }
         .helper { color: #4a4a4a; font-size: 13px; margin-top: 8px; text-align: center; }
         .auth-badge { width: 100%; text-align: center; font-size: 12px; font-weight: bold; letter-spacing: 0.08em; color: #6b7280; margin-bottom: 10px; }
-        .auth-subtitle { width: 100%; text-align: center; font-size: 13px; color: #4b5563; margin: -8px 0 14px 0; }
+        .auth-subtitle { width: 100%; text-align: center; font-size: 13px; color: #4b5563; }
         #examStep { display: none; width: 100%; }
+
+        /* Google Material Button Styles */
+        .gsi-material-button {
+          -moz-user-select: none;
+          -webkit-user-select: none;
+          -ms-user-select: none;
+          -webkit-appearance: none;
+          background-color: WHITE !important; /* Mantenir sempre el color blanc */
+          background-image: none;
+          border: 1px solid #747775 !important; /* Forçar el vora/borde de color gris corporatiu de Google */
+          -webkit-border-radius: 20px;
+          border-radius: 20px;
+          -webkit-box-sizing: border-box;
+          box-sizing: border-box;
+          color: #1f1f1f !important; /* Lletra sempre de color negre / fosc segons el CSS oficial de Google */
+          cursor: pointer;
+          font-family: 'Roboto', arial, sans-serif;
+          font-size: 14px;
+          height: 40px;
+          letter-spacing: 0.25px;
+          outline: none;
+          overflow: hidden;
+          padding: 0 12px;
+          position: relative;
+          text-align: center;
+          -webkit-transition: background-color .218s, border-color .218s, box-shadow .218s;
+          transition: background-color .218s, border-color .218s, box-shadow .218s;
+          vertical-align: middle;
+          white-space: nowrap;
+          width: auto; /* Mida ajustada al contingut */
+          max-width: 400px;
+          min-width: min-content;
+          margin: 15px auto 5px auto; /* Centrar horitzontalment en bloc */
+          display: block; /* Convertir a bloc per fer un autocentrat respecte al pare */
+        }
+
+        .gsi-material-button .gsi-material-button-icon {
+          height: 20px;
+          margin-right: 10px;
+          min-width: 20px;
+          width: 20px;
+        }
+
+        .gsi-material-button .gsi-material-button-content-wrapper {
+          -webkit-align-items: center;
+          align-items: center;
+          display: flex;
+          -webkit-flex-direction: row;
+          flex-direction: row;
+          -webkit-flex-wrap: nowrap;
+          flex-wrap: nowrap;
+          height: 100%;
+          justify-content: space-between;
+          position: relative;
+          width: 100%;
+        }
+
+        .gsi-material-button .gsi-material-button-contents {
+          -webkit-flex-grow: 1;
+          flex-grow: 1;
+          font-family: 'Roboto', arial, sans-serif;
+          font-weight: 500;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          vertical-align: top;
+        }
+
+        .gsi-material-button .gsi-material-button-state {
+          -webkit-transition: opacity .218s;
+          transition: opacity .218s;
+          bottom: 0;
+          left: 0;
+          opacity: 0;
+          position: absolute;
+          right: 0;
+          top: 0;
+        }
+
+        .gsi-material-button:disabled {
+          cursor: default;
+          background-color: #ffffff61;
+          border-color: #1f1f1f1f;
+        }
+
+        .gsi-material-button:disabled .gsi-material-button-contents {
+          opacity: 38%;
+        }
+
+        .gsi-material-button:disabled .gsi-material-button-icon {
+          opacity: 38%;
+        }
+
+        .gsi-material-button:not(:disabled):active .gsi-material-button-state, 
+        .gsi-material-button:not(:disabled):focus .gsi-material-button-state {
+          background-color: #303030;
+          opacity: 12%;
+        }
+
+        .gsi-material-button:not(:disabled):hover {
+          -webkit-box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .30), 0 1px 3px 1px rgba(60, 64, 67, .15);
+          box-shadow: 0 1px 2px 0 rgba(60, 64, 67, .30), 0 1px 3px 1px rgba(60, 64, 67, .15);
+        }
+
+        .gsi-material-button:not(:disabled):hover .gsi-material-button-state {
+          background-color: #303030;
+          opacity: 8%;
+        }
     </style>
 </head>
 <body>
@@ -48,10 +155,23 @@
             <input type="password" placeholder="Contrasenya" id="password" />
             <input type="submit" value="Registra" id="save" />
             <div id="examStep">
-                <input type="email" placeholder="Correu @inspalamos.cat" id="examEmail" />
-                <input type="text" placeholder="Nom i cognoms visibles a l'admin" id="examDisplayName" />
-                <input type="submit" value="Inicia sessió temporal" id="startExamSession" />
-                <div class="helper">Aquesta sessió expira automàticament al cap de 3 hores.</div>
+                <button class="gsi-material-button" id="startExamSession" onclick="startGoogleAuth()">
+                  <div class="gsi-material-button-state"></div>
+                  <div class="gsi-material-button-content-wrapper">
+                    <div class="gsi-material-button-icon">
+                      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" xmlns:xlink="http://www.w3.org/1999/xlink" style="display: block;">
+                        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+                        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"></path>
+                        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"></path>
+                        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+                        <path fill="none" d="M0 0h48v48H0z"></path>
+                      </svg>
+                    </div>
+                    <span class="gsi-material-button-contents" id="startExamSessionText">Accés amb @inspalamos.cat</span>
+                    <span style="display: none;">Accés amb @inspalamos.cat</span>
+                  </div>
+                </button>
+                <div class="helper">Aquesta sessió expirarà al cap de 3 hores.</div>
             </div>
             <div id="error" class="error"></div>
             <div id="success" class="success"></div>
@@ -61,34 +181,6 @@
     <script>
         const { ipcRenderer } = require('electron');
         let loginContext = { examOnly: false, baseUser: '' };
-
-        // --- Diagnòstic IPC: mostra a la consola l'estat de la connexió ---
-        (function ipcDiagnostics(){
-            try {
-                if(!ipcRenderer) {
-                    console.log('[IPC] ipcRenderer no definit');
-                    return;
-                }
-                console.log('[IPC] ipcRenderer carregat. Versió Node:', process.versions.node, 'Electron:', process.versions.electron, 'Chrome:', process.versions.chrome);
-                // Prova d'invoke: encara que no hi hagi handler sabrem si el canal arriba al main
-                ipcRenderer.invoke('ipc-test-probe', {t: Date.now()})
-                    .then(res => {
-                        console.log('[IPC] invoke resposta correcta (handler existent):', res);
-                    })
-                    .catch(err => {
-                        console.log('[IPC] invoke canal accessible però sense handler o amb error:', err.message);
-                    });
-                // També fem un send + on possible
-                const replyChannel = 'ipc-test-probe-reply';
-                ipcRenderer.once(replyChannel, (_ev, data)=>{
-                    console.log('[IPC] reply rebut via event:', data);
-                });
-                try { ipcRenderer.send('ipc-test-probe-send', {t: Date.now(), replyChannel}); } catch(e){ console.log('[IPC] error fent send:', e.message); }
-            } catch (e) {
-                console.log('[IPC] Excepció al diagnòstic:', e.message);
-            }
-        })();
-        // --- Fi diagnòstic IPC ---
 
         function showError(message) {
             const errorEl = document.getElementById('error');
@@ -113,12 +205,12 @@
         function showExamStep() {
             document.getElementById('authBadge').textContent = 'REGISTRE TEMPORAL';
             document.getElementById('authTitle').textContent = 'Identificació temporal d\'examen';
-            document.getElementById('authSubtitle').textContent = 'Aquest pas no canvia l\'usuari base de l\'ordinador; només identifica temporalment l\'alumne de l\'examen.';
+            document.getElementById('authSubtitle').textContent = 'Identifica\'t amb el teu compte @inspalamos.cat per iniciar una sessió d\'examen.';
+            document.getElementById('serverUrl').style.display = 'none'; // Amaga l'input de l'IP del servidor
             document.getElementById('username').style.display = 'none';
             document.getElementById('password').style.display = 'none';
             document.getElementById('save').style.display = 'none';
             document.getElementById('examStep').style.display = 'block';
-            document.getElementById('examEmail').focus();
         }
 
         function normalizeServerUrl(rawUrl) {
@@ -156,37 +248,55 @@
             showExamStep();
         }
 
-        async function startExamSession(baseUser) {
-            const examEmail = document.getElementById('examEmail').value.trim().toLowerCase();
-            const examDisplayName = document.getElementById('examDisplayName').value.trim();
+        async function startGoogleAuth() {
+            const btn = document.getElementById('startExamSession');
+            const txt = document.getElementById('startExamSessionText');
+            const originalText = txt.textContent;
+            
+            txt.textContent = "Connectant...";
+            btn.disabled = true;
 
-            // TODO(OAuth): substituir aquesta validacio de domini per autenticacio Google OAuth/OIDC real.
-            if (!examEmail.endsWith('@inspalamos.cat')) {
-                showError("El correu ha de ser del domini @inspalamos.cat");
-                return;
+            const baseUser = document.getElementById('username').value.trim();
+
+            try {
+                // Obrir la finestra de Google Auth controlada per Electron
+                const authResult = await ipcRenderer.invoke('start-google-auth');
+                
+                if (!authResult || !authResult.ok) {
+                    showError(authResult?.error || "Autenticació cancel·lada");
+                    txt.textContent = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                txt.textContent = "Validant...";
+                
+                // Enviar l'id_token al servidor (via HTTP palamSRV directament o a través d'IPC de main per mantenir tokens).
+                // Ho demanem a main.js perquè allà té la informació del Servidor seleccionat
+                const started = await ipcRenderer.invoke('start-exam-session', {
+                    baseUser,
+                    code: authResult.code,
+                    ttlHours: 3,
+                });
+
+                if (!started || !started.ok) {
+                    showError(started?.error || "Error validant les dades al servidor central");
+                    txt.textContent = originalText;
+                    btn.disabled = false;
+                    return;
+                }
+
+                showSuccess("Sessió temporal iniciada. Connectant...");
+                txt.textContent = "Sessió iniciada";
+                setTimeout(() => {
+                    ipcRenderer.invoke('login-completed');
+                }, 600);
+
+            } catch (err) {
+                showError("S'ha produït un error de connexió intern: " + err.message);
+                txt.textContent = originalText;
+                btn.disabled = false;
             }
-
-            if (!examDisplayName) {
-                showError("Cal indicar el nom que es mostrarà a l'admin");
-                return;
-            }
-
-            const started = await ipcRenderer.invoke('start-exam-session', {
-                baseUser,
-                user: examEmail,
-                displayName: examDisplayName,
-                ttlHours: 3,
-            });
-
-            if (!started || !started.ok) {
-                showError("No s'ha pogut iniciar la sessió temporal d'examen");
-                return;
-            }
-
-            showSuccess("Sessió temporal iniciada");
-            setTimeout(() => {
-                ipcRenderer.invoke('login-completed');
-            }, 600);
         }
 
         async function saveUser() {
