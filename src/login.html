@@ -146,7 +146,7 @@
         <div class="top"></div>
         <div class="bottom"></div>
         <div class="center">
-            <div id="authBadge" class="auth-badge">REGISTRE MÀQUINA</div>
+            <div id="authBadge" class="auth-badge">REGISTRE AMB PALAMBLOCK</div>
             <h2 id="authTitle">Autentifica aquest ordinador</h2>
             <div id="authSubtitle" class="auth-subtitle">Registre persistent del dispositiu amb l'usuari base de PalamBlock.</div>
             <input type="text" placeholder="Servidor (ex: http://localhost:3000)" id="serverUrl" list="serverUrlOptions" />
@@ -155,7 +155,7 @@
             <input type="password" placeholder="Contrasenya" id="password" />
             <input type="submit" value="Registra" id="save" />
             <div id="examStep">
-                <button class="gsi-material-button" id="startExamSession" onclick="startGoogleAuth()">
+                <button class="gsi-material-button" id="startExamSession">
                   <div class="gsi-material-button-state"></div>
                   <div class="gsi-material-button-content-wrapper">
                     <div class="gsi-material-button-icon">
@@ -167,8 +167,8 @@
                         <path fill="none" d="M0 0h48v48H0z"></path>
                       </svg>
                     </div>
-                    <span class="gsi-material-button-contents" id="startExamSessionText">Accés amb @inspalamos.cat</span>
-                    <span style="display: none;">Accés amb @inspalamos.cat</span>
+                    <span class="gsi-material-button-contents" id="startExamSessionText">Accedeix amb @inspalamos.cat</span>
+                    <span style="display: none;">Accedeix amb @inspalamos.cat</span>
                   </div>
                 </button>
                 <div class="helper">Aquesta sessió expirarà al cap de 3 hores.</div>
@@ -203,9 +203,8 @@
         }
 
         function showExamStep() {
-            document.getElementById('authBadge').textContent = 'REGISTRE TEMPORAL';
             document.getElementById('authTitle').textContent = 'Identificació temporal d\'examen';
-            document.getElementById('authSubtitle').textContent = 'Identifica\'t amb el teu compte @inspalamos.cat per iniciar una sessió d\'examen.';
+            document.getElementById('authSubtitle').textContent = 'Aquest ordinador està protegit amb PalamBlock. En accedir, es crearà una sessió d\'examen, on es monitorarà la teva activitat.';
             document.getElementById('serverUrl').style.display = 'none'; // Amaga l'input de l'IP del servidor
             document.getElementById('username').style.display = 'none';
             document.getElementById('password').style.display = 'none';
@@ -353,15 +352,13 @@
 
         document.getElementById('save').addEventListener('click', saveUser);
         document.getElementById('startExamSession').addEventListener('click', async () => {
-            const baseUser = (loginContext.examOnly ? loginContext.baseUser : document.getElementById('username').value || '').trim();
-            await startExamSession(baseUser);
+            await startGoogleAuth();
         });
         document.addEventListener('keydown', async function(e) {
             if (e.key !== 'Enter') return;
             const examVisible = document.getElementById('examStep').style.display === 'block';
             if (examVisible) {
-                const baseUser = (loginContext.examOnly ? loginContext.baseUser : document.getElementById('username').value || '').trim();
-                await startExamSession(baseUser);
+                await startGoogleAuth();
                 return;
             }
             saveUser();

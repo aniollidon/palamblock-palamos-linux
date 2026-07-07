@@ -12,6 +12,8 @@ const { getCurrentSSID } = require("./network");
 const { logger } = require("./logger");
 const { autoUpdater } = require("electron-updater");
 const log = require("electron-log");
+// Ruta a la icona local dins palamOS-linux/assets/palamOS-logo.png
+const APP_ICON = path.join(__dirname, "..", "assets", "palamOS-logo.png");
 require("dotenv").config();
 
 const DEFAULT_SERVER_URL =
@@ -173,6 +175,7 @@ function createLoginWindow(loginContext = { examOnly: false, baseUser: "" }) {
   loginWindow = new BrowserWindow({
     width: 500,
     height: 720,
+    icon: APP_ICON,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -208,6 +211,7 @@ function createMainWindow() {
   mainWindow = new BrowserWindow({
     width: 800,
     height: 600,
+    icon: APP_ICON,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -242,6 +246,7 @@ function createDisplayWindow() {
 
   displayWindow = new BrowserWindow({
     fullscreen: true,
+    icon: APP_ICON,
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
@@ -717,26 +722,54 @@ ipcMain.handle("get-login-context", () => {
 });
 
 ipcMain.handle("start-exam-session", async (_event, payload) => {
-  // TODO(OAuth): validar la identitat amb Google OAuth/OIDC i no només amb dades entrades al formulari.
   const baseUser =
     (payload && payload.baseUser) || username || getUsername() || "unknown";
   if (!isExamUserName(baseUser)) {
-    return { ok: false, reason: "not-exam-user" };
+    return { ok: false, error: "L'usuari base no és de tipus examen." };
   }
 
-  const sessionUser = normalizeTextValue(payload && payload.user);
-  const displayName = normalizeTextValue(payload && payload.displayName);
+  const oauthCode = payload && payload.code;
+  if (!oauthCode) {
+    return { ok: false, error: "Falta el codi de validació d'OAuth de Google." };
+  }
+
   const ttlHours =
     payload && Number.isFinite(Number(payload.ttlHours))
       ? Number(payload.ttlHours)
       : 3;
 
-  if (!sessionUser) {
-    return { ok: false, reason: "missing-user" };
-  }
+  const apiBase = getApiBaseFromServerUrl(selectedServerUrl);
 
-  startExamSession(sessionUser, displayName, ttlHours);
-  return { ok: true, session: { ...examSession } };
+  try {
+    logger.info("Validant codi d'autenticació amb Google al servidor central...");
+    const resp = await axios.post(
+      `${apiBase}/api/v1/alumne/auth/google`,
+      { code: oauthCode },
+      { validateStatus: () => true }
+    );
+
+    logger.debug("Resposta autenticació Google del servidor central:", resp.status);
+
+    if (resp.status !== 200 || !resp.data || resp.data.status !== "OK") {
+      const errMsg = (resp.data && resp.data.data && resp.data.data.error) || "Error d'autenticació amb Google.";
+      return { ok: false, error: errMsg };
+    }
+
+    const googlePayload = resp.data.data;
+    const sessionUser = googlePayload.email;
+    const displayName = `${googlePayload.nom} ${googlePayload.cognoms || ""}`.trim();
+
+    if (!sessionUser) {
+      return { ok: false, error: "El servidor de Google no ha retornat un correu vàlid." };
+    }
+
+    startExamSession(sessionUser, displayName, ttlHours);
+    return { ok: true, session: { ...examSession } };
+
+  } catch (err) {
+    logger.error("Error al validar el codi OAuth de Google contra palamSRV:", err && err.message);
+    return { ok: false, error: `Error de xarxa amb el servidor central: ${err.message}` };
+  }
 });
 
 ipcMain.handle("end-exam-session", () => {
@@ -814,6 +847,75 @@ ipcMain.handle("save-username", async (event, username) => {
     logger.error("Error guardant usuari:", error);
     return { success: false, error: error.message };
   }
+});
+
+// Handler per iniciar el procés d'autenticació amb Google OAuth
+ipcMain.handle("start-google-auth", async () => {
+  return new Promise((resolve) => {
+    const googleClientId = "1084270042118-o7og5umgkvhjluc5g2van7j7p3sg7jm5.apps.googleusercontent.com";
+    // S'afegeix el paràmetre hd=inspalamos.cat per indicar a Google el domini de treball predeterminat dels alumnes
+    const authUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${googleClientId}&redirect_uri=http://localhost&response_type=code&scope=email%20profile&hd=inspalamos.cat`;
+
+    const authWindow = new BrowserWindow({
+      width: 500,
+      height: 650,
+      icon: APP_ICON,
+      show: false,
+      resizable: true,
+      alwaysOnTop: true,
+      autoHideMenuBar: true, // Oculta barra d'eines / fitxers / menú predeterminat
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        partition: "temp_google_auth_session_" + Date.now(), // Força una sessió completament nova i no persistent a Electron
+      },
+    });
+
+    // Eliminació estricta del menú superior (Fitxer, Eines, etc.)
+    authWindow.removeMenu();
+
+    authWindow.loadURL(authUrl);
+
+    authWindow.once("ready-to-show", () => {
+      authWindow.show();
+    });
+
+    let resolved = false;
+
+    const handleNavigation = (url) => {
+      if (url.startsWith("http://localhost")) {
+        resolved = true;
+        try {
+          const urlObj = new URL(url);
+          const code = urlObj.searchParams.get("code");
+          const error = urlObj.searchParams.get("error");
+
+          if (code) {
+            resolve({ ok: true, code });
+          } else {
+            resolve({ ok: false, error: error || "Autenticació fallida o cancel·lada." });
+          }
+        } catch (e) {
+          resolve({ ok: false, error: "Error de redirecció des de l'autenticació de Google." });
+        }
+        authWindow.close();
+      }
+    };
+
+    authWindow.webContents.on("will-navigate", (event, url) => {
+      handleNavigation(url);
+    });
+
+    authWindow.webContents.on("will-redirect", (event, url) => {
+      handleNavigation(url);
+    });
+
+    authWindow.on("close", () => {
+      if (!resolved) {
+        resolve({ ok: false, error: "Finestra de login de Google tancada per l'usuari." });
+      }
+    });
+  });
 });
 
 // Quan el login es completa
