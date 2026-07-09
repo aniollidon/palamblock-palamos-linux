@@ -10,6 +10,8 @@ const commands = require("./commands");
 const { getUsername } = require("./user");
 const { getCurrentSSID } = require("./network");
 const { logger } = require("./logger");
+const { startCapture, stopCapture } = require("./capture");
+const { getMachineId } = require("./machineId");
 const { autoUpdater } = require("electron-updater");
 const log = require("electron-log");
 // Ruta a la icona local dins palamOS-linux/assets/palamOS-logo.png
@@ -503,6 +505,10 @@ function connectToServer() {
       emitSessionChange("login2-connect");
     }
 
+    // Inicia el sistema de captures de pantalla
+    const machineId = getMachineId();
+    startCapture(socket, username, machineId);
+
     // Després de registrar verifiquem sempre
     checkCastActive();
   });
@@ -703,6 +709,8 @@ app.on("before-quit", (e) => {
 });
 
 app.on("will-quit", () => {
+  // Atura el sistema de captures
+  stopCapture();
   // Neteja els shortcuts globals
   globalShortcut.unregisterAll();
 });

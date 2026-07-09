@@ -80,6 +80,9 @@ echo "Instal·lant dependències de Node.js..."
 cd "$(dirname "$0")"
 npm install
 
+npm install sharp
+npx electron-rebuild -f -w sharp
+
 # Executar l'script d'instal·lació d'Electron per descarregar el binari
 echo "Descarregant binari d'Electron..."
 node node_modules/electron/install.js

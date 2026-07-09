@@ -21,10 +21,11 @@
   "dependencies": {
     "axios": "^1.7.2",
     "dotenv": "^16.4.5",
-    "ip": "^2.0.1",
-    "socket.io-client": "^4.7.5",
+    "electron-log": "^5.4.3",
     "electron-updater": "^6.6.2",
-    "electron-log": "^5.4.3"
+    "ip": "^2.0.1",
+    "sharp": "^0.33.5",
+    "socket.io-client": "^4.7.5"
   },
   "devDependencies": {
     "electron": "^28.3.3",
