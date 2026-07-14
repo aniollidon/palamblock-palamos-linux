@@ -10,7 +10,7 @@ const commands = require("./commands");
 const { getUsername } = require("./user");
 const { getCurrentSSID } = require("./network");
 const { logger } = require("./logger");
-const { startCapture, stopCapture } = require("./capture");
+const { startCapture, stopCapture, setSessionId } = require("./capture");
 const { getMachineId } = require("./machineId");
 const { autoUpdater } = require("electron-updater");
 const log = require("electron-log");
@@ -46,6 +46,7 @@ const examSession = {
   displayName: null,
   startedAt: null,
   expiresAt: null,
+  sessionId: null,
 };
 
 // Configuració de l'aplicació
@@ -125,6 +126,9 @@ function emitSessionChange(reason) {
     user: normalizeTextValue(examSession.user),
     displayName: normalizeTextValue(examSession.displayName),
     expiresAt: examSession.expiresAt,
+    sessionId: examSession.sessionId,
+    startedAt: examSession.startedAt,
+    machineId: getMachineId(),
     reason,
   });
 
@@ -145,8 +149,14 @@ function resetExamSession(reason = "manual") {
   examSession.displayName = null;
   examSession.startedAt = null;
   examSession.expiresAt = null;
+  examSession.sessionId = null;
 
   emitSessionChange(reason);
+
+  // Si la sessió s'ha desactivat, neteja el sessionId de les captures
+  if (!examSession.active) {
+    setSessionId(null);
+  }
 }
 
 function startExamSession(user, displayName, ttlHours = 3) {
@@ -155,6 +165,7 @@ function startExamSession(user, displayName, ttlHours = 3) {
   examSession.user = normalizeTextValue(user);
   examSession.displayName = normalizeTextValue(displayName);
   examSession.startedAt = new Date().toISOString();
+  examSession.sessionId = String(Date.now());
   examSession.expiresAt = new Date(
     Date.now() + ttlHours * 60 * 60 * 1000
   ).toISOString();
@@ -165,6 +176,9 @@ function startExamSession(user, displayName, ttlHours = 3) {
   }, ttlHours * 60 * 60 * 1000);
 
   emitSessionChange("login2");
+
+  // Actualitza el sessionId al sistema de captures
+  setSessionId(examSession.sessionId);
 }
 
 function createLoginWindow(loginContext = { examOnly: false, baseUser: "" }) {
@@ -507,7 +521,7 @@ function connectToServer() {
 
     // Inicia el sistema de captures de pantalla
     const machineId = getMachineId();
-    startCapture(socket, username, machineId);
+    startCapture(socket, username, machineId, examSession.sessionId);
 
     // Després de registrar verifiquem sempre
     checkCastActive();

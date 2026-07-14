@@ -23,6 +23,7 @@ let sendIntervalId = null;
 let socketRef = null;
 let usernameRef = null;
 let machineIdRef = null;
+let sessionIdRef = null;
 let captureInterval = 30;    // segons entre captures
 let captureImgBuffer = 120;  // maxim d'imatges locals
 let captureSendInterval = 180; // segons entre enviaments
@@ -148,6 +149,7 @@ async function sendPendingScreenshots() {
         machineId: machineIdRef,
         filename,
         format: imageFormat,
+        sessionId: sessionIdRef,
         timestamp: new Date().toISOString(),
       }, buffer);
 
@@ -184,7 +186,7 @@ function handleAck(data) {
 
 // ─── API pública ─────────────────────────────────────────────────
 
-function startCapture(socket, username, machineId, config = {}) {
+function startCapture(socket, username, machineId, sessionId, config = {}) {
   if (captureIntervalId || sendIntervalId) {
     logger.warn('[capture] El sistema de captura ja esta en marxa');
     return;
@@ -193,6 +195,7 @@ function startCapture(socket, username, machineId, config = {}) {
   socketRef = socket;
   usernameRef = username;
   machineIdRef = machineId;
+  sessionIdRef = sessionId || null;
 
   captureInterval = parseInt(config.captureInterval || process.env.CAPTURE_INTERVAL || 30, 10);
   captureImgBuffer = parseInt(config.captureImgBuffer || process.env.CAPTURE_IMG_BUFFER || 120, 10);
@@ -238,9 +241,19 @@ function stopCapture() {
   socketRef = null;
   usernameRef = null;
   machineIdRef = null;
+  sessionIdRef = null;
   pendingAcks.clear();
 
   logger.info('[capture] Sistema aturat');
 }
 
-module.exports = { startCapture, stopCapture, takeScreenshot, sendPendingScreenshots };
+/**
+ * Actualitza el sessionId actual (cridat quan canvia la sessió d'examen).
+ * @param {string|null} sessionId
+ */
+function setSessionId(sessionId) {
+  sessionIdRef = sessionId || null;
+  logger.debug(`[capture] sessionId actualitzat: ${sessionIdRef || 'null'}`);
+}
+
+module.exports = { startCapture, stopCapture, takeScreenshot, sendPendingScreenshots, setSessionId };
