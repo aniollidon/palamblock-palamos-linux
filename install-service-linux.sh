@@ -24,6 +24,14 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
+# Comprova/instal·la libvips (necessari per a sharp/screenshots)
+if ! ldconfig -p 2>/dev/null | grep -q libvips; then
+    echo "libvips no detectat. Instal·lant libvips42 (necessari per a les captures de pantalla)..."
+    apt-get update -qq
+    apt-get install -y libvips42
+    echo "libvips42 instal·lat."
+fi
+
 # Paràmetres
 SERVICE_RUN_USER=""        # Obligatori amb --user
 DISPLAY_VALUE=":1"         # DISPLAY per defecte
