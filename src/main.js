@@ -1000,10 +1000,27 @@ autoUpdater.on("download-progress", (progressObj) => {
 
 autoUpdater.on("update-downloaded", (info) => {
   log.info("Actualització descarregada. Versió:", info.version);
-  // Instal·la automàticament després de 5 segons
+
+  // Copiar la nova AppImage a /opt/palamos-dashboard/ (no cal sudo, alumne hi té permisos)
+  const downloadedFile = info.downloadedFile;
+  if (downloadedFile && fs.existsSync(downloadedFile)) {
+    try {
+      const targetPath = "/opt/palamos-dashboard/palam-dash.AppImage";
+      fs.copyFileSync(downloadedFile, targetPath);
+      fs.chmodSync(targetPath, 0o755);
+      log.info("AppImage actualitzada a", targetPath);
+    } catch (err) {
+      log.error("Error copiant AppImage a /opt/palamos-dashboard:", err);
+    }
+  } else {
+    log.warn("No s'ha trobat el fitxer descarregat a:", downloadedFile);
+  }
+
+  // Reiniciar: systemd té Restart=always, així que app.exit(0) reinicia el servei
   setTimeout(() => {
-    autoUpdater.quitAndInstall();
-  }, 5000);
+    log.info("Reiniciant aplicació per aplicar l'actualització...");
+    app.exit(0);
+  }, 1000);
 });
 
 // Les comprovacions d'actualització es fan dins app.whenReady().then()
