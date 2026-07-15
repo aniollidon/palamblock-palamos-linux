@@ -1,6 +1,6 @@
 {
   "name": "palam-dash",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "Aplicació Electron per a PalamOS Dashboard",
   "main": "src/main.js",
   "scripts": {
