@@ -28,7 +28,7 @@
   },
   "build": {
     "appId": "com.palamos.dash",
-    "productName": "PalamOS Dashboard",
+    "productName": "PalamOS-Dashboard",
     "directories": {
       "output": "dist"
     },
