@@ -83,18 +83,6 @@ dev: ## Executa l'aplicació en mode desenvolupament
 	@echo "Executant en mode desenvolupament..."
 	@npm run dev
 
-pm2-start: ## Inicia l'aplicació amb PM2
-	@echo "Iniciant amb PM2..."
-	@npm run pm2:start
-
-pm2-stop: ## Atura l'aplicació amb PM2
-	@echo "Aturant amb PM2..."
-	@npm run pm2:stop
-
-pm2-logs: ## Mostra els logs de PM2
-	@echo "Logs de PM2..."
-	@npm run pm2:logs
-
 test: ## Executa tests (si existeixen)
 	@echo "Executant tests..."
 	@npm test || echo "No hi ha tests configurats"

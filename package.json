@@ -9,11 +9,6 @@
     "build": "electron-builder",
     "build-linux": "electron-builder --linux",
     "publish": "electron-builder --linux --publish always",
-    "pm2:start": "pm2 start ecosystem.config.js",
-    "pm2:stop": "pm2 stop PalamOS-Dashboard",
-    "pm2:restart": "pm2 restart PalamOS-Dashboard",
-    "pm2:logs": "pm2 logs PalamOS-Dashboard",
-    "pm2:delete": "pm2 delete PalamOS-Dashboard",
     "install:deps": "./install-dependencies-ubuntu.sh",
     "install:service": "sudo ./install-service-linux.sh",
     "install:startup": "./install-startup-linux.sh"

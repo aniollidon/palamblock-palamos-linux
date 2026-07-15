@@ -11,7 +11,7 @@ echo "  sudo ./install-service-linux.sh --user alumne --display :0"
 echo
 
 # Comprova si l'aplicació està compilada (busca l'AppImage)
-APPIMAGE_FILE=$(ls dist/*.AppImage 2>/dev/null | head -n1)
+APPIMAGE_FILE=$(ls -t dist/*.AppImage 2>/dev/null | head -n1)
 if [ -z "$APPIMAGE_FILE" ]; then
     echo "Error: No s'ha trobat cap AppImage a dist/. Executa 'npm run build' primer."
     exit 1
