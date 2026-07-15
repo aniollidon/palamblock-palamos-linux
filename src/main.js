@@ -707,6 +707,13 @@ app.whenReady().then(() => {
       }
     }, 1000);
   });
+
+  // Comprova actualitzacions automàticament en producció
+  if (!isDev) {
+    setTimeout(() => {
+      autoUpdater.checkForUpdatesAndNotify();
+    }, 10000); // Espera 10 segons després d'iniciar
+  }
 });
 
 app.on("window-all-closed", () => {
@@ -994,11 +1001,4 @@ autoUpdater.on("update-downloaded", (info) => {
   }, 5000);
 });
 
-// Comprova actualitzacions quan l'app està llesta
-app.on("ready", () => {
-  if (!isDev) {
-    setTimeout(() => {
-      autoUpdater.checkForUpdatesAndNotify();
-    }, 10000); // Espera 10 segons després d'iniciar
-  }
-});
+// Les comprovacions d'actualització es fan dins app.whenReady().then()

@@ -10,11 +10,13 @@ echo "  sudo ./install-service-linux.sh --user alumne --display :0"
 echo "  sudo ./install-service-linux.sh --user alumne --display :0"
 echo
 
-# Comprova si l'aplicació està compilada
-if [ ! -f "dist/linux-unpacked/palam-dash" ]; then
-    echo "Error: L'aplicació no està compilada. Executa 'npm run build' primer."
+# Comprova si l'aplicació està compilada (busca l'AppImage)
+APPIMAGE_FILE=$(ls dist/*.AppImage 2>/dev/null | head -n1)
+if [ -z "$APPIMAGE_FILE" ]; then
+    echo "Error: No s'ha trobat cap AppImage a dist/. Executa 'npm run build' primer."
     exit 1
 fi
+echo "AppImage trobada: $APPIMAGE_FILE"
 
 # Comprova si estem executant com a root
 if [ "$EUID" -ne 0 ]; then
@@ -77,9 +79,10 @@ fi
 # Crea el directori del servei
 mkdir -p /opt/palamos-dashboard
 
-# Copia l'aplicació
-echo "Copiant aplicació..."
-cp -r dist/linux-unpacked/* /opt/palamos-dashboard/
+# Copia l'AppImage
+echo "Copiant AppImage..."
+cp "$APPIMAGE_FILE" /opt/palamos-dashboard/palam-dash.AppImage
+chmod +x /opt/palamos-dashboard/palam-dash.AppImage
 
 # Copia els scripts
 echo "Copia els scripts..."
@@ -101,7 +104,7 @@ else
     cat > /opt/palamos-dashboard/run.sh << RSEOF
 #!/bin/bash
 set -euo pipefail
-APP="/opt/palamos-dashboard/palam-dash"
+APP="/opt/palamos-dashboard/palam-dash.AppImage"
 DISPLAY_VAL="$DISPLAY_VALUE"
 export DISPLAY="${DISPLAY_VAL}"
 echo "[run.sh] Iniciant amb DISPLAY=${DISPLAY}"
@@ -124,7 +127,7 @@ fi
 
 echo "Configurant permisos perquè el servei el gestioni l'usuari: $SERVICE_RUN_USER"
 chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER /opt/palamos-dashboard
-chmod +x /opt/palamos-dashboard/palam-dash
+chmod +x /opt/palamos-dashboard/palam-dash.AppImage
 SERVICE_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
 
 USER_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
@@ -163,8 +166,8 @@ UID_NUM=$(id -u "$SERVICE_RUN_USER")
 USER_RUNTIME_DIR="/run/user/$UID_NUM"
 ENABLE_OK=false
 
-sudo chmod 4755 /opt/palamos-dashboard/chrome-sandbox
-sudo chown root:root /opt/palamos-dashboard/chrome-sandbox
+# L'AppImage és autònoma, no cal chrome-sandbox separat
+echo "AppImage instal·lada. L'auto-update es gestiona via electron-updater."
 
 echo "Verificant sessió d'usuari (XDG_RUNTIME_DIR)..."
 if [ -d "$USER_RUNTIME_DIR" ]; then
