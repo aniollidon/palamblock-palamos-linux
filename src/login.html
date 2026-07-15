@@ -139,9 +139,21 @@
           background-color: #303030;
           opacity: 8%;
         }
+
+        .version-info {
+          position: fixed;
+          bottom: 8px;
+          right: 12px;
+          font-size: 11px;
+          color: #fff;
+          z-index: 9999;
+          font-family: "Raleway", sans-serif;
+          pointer-events: none;
+        }
     </style>
 </head>
 <body>
+    <div class="version-info" id="versionInfo"></div>
     <div class="container">
         <div class="top"></div>
         <div class="bottom"></div>
@@ -366,6 +378,12 @@
         document.getElementById('username').focus();
         loadServerOptions();
         loadLoginContext();
+
+        async function loadVersion() {
+            const version = await ipcRenderer.invoke('get-app-version');
+            document.getElementById('versionInfo').textContent = 'v' + version;
+        }
+        loadVersion();
     </script>
 </body>
 </html>

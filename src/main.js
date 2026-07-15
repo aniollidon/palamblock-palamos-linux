@@ -656,6 +656,7 @@ function unregisterDisplayShortcuts() {
 
 // Events de l'aplicació
 app.whenReady().then(() => {
+  logger.info(`PalamOS Dashboard v${app.getVersion()}`);
   loadServerPreference();
 
   // Comprova si l'usuari està logat
@@ -748,6 +749,10 @@ ipcMain.handle("get-username", () => {
 
 ipcMain.handle("get-login-context", () => {
   return { ...currentLoginContext };
+});
+
+ipcMain.handle("get-app-version", () => {
+  return app.getVersion();
 });
 
 ipcMain.handle("start-exam-session", async (_event, payload) => {
