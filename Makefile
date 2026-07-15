@@ -23,6 +23,8 @@ deps: ## Instal·la les dependències del sistema
 	@./install-dependencies-ubuntu.sh
 
 build: ## Compila l'aplicació per a Linux
+	@echo "Netejant build anterior..."
+	@rm -rf dist/
 	@echo "Compilant aplicació..."
 	@npm run build
 
