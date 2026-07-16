@@ -1,0 +1,35 @@
+{
+  "HomepageIsNewTabPage": false,
+  "DefaultBrowserSettingEnabled": true,
+  "RestoreOnStartup": 1,
+  "SafeBrowsingProtectionLevel": 2,
+  "SyncDisabled":1,
+  "IncognitoModeAvailability":1,
+  "BrowserGuestModeEnabled":false,
+  "ForcedLanguages":["ca-ES"],
+  "ExtensionInstallAllowlist": [
+    "djdihbjaljagohkmfbjhacghcdplkhlh",
+    "ghbmnnjooekpmoecnnnilnnbdlolhkhi",
+    "oldceeleldhonbafppcapldpdifcinji",
+    "cfagkbfaddfghghfcffamnjjjllonfog",
+    "mbfboihhhoaklaafehggofgjgnhkheah"
+  ],
+ "ExtensionInstallBlocklist":["*"],
+ "ExtensionInstallForcelist":[
+ "djdihbjaljagohkmfbjhacghcdplkhlh;https://clients2.google.com/service/update2/crx",
+ "ghbmnnjooekpmoecnnnilnnbdlolhkhi;https://clients2.google.com/service/update2/crx",
+ "oldceeleldhonbafppcapldpdifcinji;https://clients2.google.com/service/update2/crx",
+ "cfagkbfaddfghghfcffamnjjjllonfog;https://clients2.google.com/service/update2/crx",
+ "mbfboihhhoaklaafehggofgjgnhkheah;https://clients2.google.com/service/update2/crx"
+],
+ "BraveAIChatEnabled": false,
+ "BraveWalletDisabled": true,
+ "BraveRewardsDisabled": true,
+ "URLBlocklist":[
+  "chrome://extensions",
+  "chrome://settings",
+  "brave://extensions",
+  "brave://settings",
+  "brave://leo-ai",
+  "brave://wallet"
+ ]}

@@ -1,0 +1,7 @@
+{
+  "policies": {
+    "WebsiteFilter": {
+      "Block": ["<all_urls>"]
+    }
+  }
+}
