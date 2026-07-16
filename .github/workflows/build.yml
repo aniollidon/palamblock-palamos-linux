@@ -26,11 +26,14 @@ jobs:
         with:
           node-version: "18"
           cache: "npm"
+          cache-dependency-path: palam-dash/package-lock.json
 
       - name: Install dependencies
+        working-directory: palam-dash
         run: npm ci
 
       - name: Build Linux
+        working-directory: palam-dash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run build-linux -- --publish never
@@ -40,9 +43,9 @@ jobs:
         with:
           name: palamos-linux
           path: |
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.yml
+            palam-dash/dist/*.AppImage
+            palam-dash/dist/*.deb
+            palam-dash/dist/*.yml
 
   release:
     needs: build
