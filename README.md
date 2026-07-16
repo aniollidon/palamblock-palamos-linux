@@ -5,7 +5,10 @@ are intentionally not documented.
 
 If you are a student attempting to disable this tool, please contact your teacher.
 
-# PalamOS Dashboard - Aplicació Electron
+# Setup-OS:
+Modificacions a un sistema operatiu amb base debian per garantir el funcionament de la màquina alumne.
+
+# PalamDash: PalamOS Dashboard
 
 Aplicació Electron que funciona com a servei (unitat d'usuari systemd) per a PalamOS, connectant-se amb un servidor WebSocket i mostrant un dashboard a pantalla completa controlat remotament.
 
