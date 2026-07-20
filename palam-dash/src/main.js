@@ -12,6 +12,7 @@ const { getCurrentSSID } = require("./network");
 const { logger } = require("./logger");
 const { startCapture, stopCapture, setSessionId } = require("./capture");
 const { getMachineId } = require("./machineId");
+const { startBridgeServer, stopBridgeServer } = require("./bridge");
 const { autoUpdater } = require("electron-updater");
 const log = require("electron-log");
 // Ruta a la icona local dins palamOS-linux/assets/palamOS-logo.png
@@ -670,6 +671,9 @@ app.whenReady().then(() => {
       isLoggedIn = true;
       createMainWindow();
       connectToServer();
+      // Inicia el pont local
+      const bridgePort = parseInt(process.env.BRIDGE_PORT, 10) || 9876;
+      startBridgeServer(selectedServerUrl, username, bridgePort);
     }
   } else {
     logger.info("No hi ha usuari logat, mostrant login...");
@@ -731,6 +735,8 @@ app.on("before-quit", (e) => {
 });
 
 app.on("will-quit", () => {
+  // Atura el pont local
+  stopBridgeServer();
   // Atura el sistema de captures
   stopCapture();
   // Neteja els shortcuts globals
@@ -969,6 +975,10 @@ ipcMain.handle("login-completed", () => {
   username = getUsername();
   createMainWindow();
   connectToServer();
+
+  // Inicia el pont local per a l'extensió del navegador
+  const bridgePort = parseInt(process.env.BRIDGE_PORT, 10) || 9876;
+  startBridgeServer(selectedServerUrl, username, bridgePort);
 
   return { success: true };
 });
