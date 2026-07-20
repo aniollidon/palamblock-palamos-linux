@@ -1,5 +1,5 @@
 const { ipcRenderer } = require("electron");
-const { logger } = require("../logger");
+const { logger } = require("./logger");
 
 (async () => {
   const player = document.getElementById("player");
