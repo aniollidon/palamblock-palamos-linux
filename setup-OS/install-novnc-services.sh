@@ -268,13 +268,20 @@ chmod 644 /etc/systemd/system/novnc-proxy.service
 log_info "Fitxer de servei creat: /etc/systemd/system/novnc-proxy.service"
 
 # -----------------------------------------------------------------------------
-# 8. Crear directori de logs
+# 8. Crear directoris i fitxers de logs
 # -----------------------------------------------------------------------------
 
-log_info "Creant directori de logs..."
+log_info "Creant directoris i fitxers de logs..."
+
+# Directori de logs de palamOS-dashboard
 mkdir -p /var/log/palamos-dashboard
 chown "$NOVNC_USER:$(id -gn "$NOVNC_USER")" /var/log/palamos-dashboard 2>/dev/null || true
 log_info "Directori creat: /var/log/palamos-dashboard"
+
+# Fitxer de log de x11vnc (cal que l'usuari VNC hi pugui escriure)
+touch /var/log/x11vnc.log
+chown "$VNC_USER:$(id -gn "$VNC_USER")" /var/log/x11vnc.log
+log_info "Fitxer creat: /var/log/x11vnc.log (propietari: $VNC_USER)"
 
 # -----------------------------------------------------------------------------
 # 9. Activar i iniciar serveis

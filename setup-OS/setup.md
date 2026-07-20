@@ -156,21 +156,33 @@ Aquests serveis permeten veure i controlar remotament la pantalla de l'alumne:
 
 ### Detectar el display X
 
-Abans d'instal·lar, l'usuari `alumne` ha d'haver iniciat sessió gràfica. Per saber quin display X fa servir:
+Abans d'instal·lar, l'usuari `alumne` ha d'haver iniciat sessió gràfica. El display X pot variar segons la configuració de GDM:
+
+- **Amb GDM + autologin** (plantilla examen): normalment el display és **`:0`**
+- **Amb GDM sense autologin** (plantilla FPB): normalment el display és **`:1`** (GDM ocupa `:0`)
+
+Per saber quin display X fa servir l'usuari `alumne`:
 
 ```bash
 # Com a super
 w -h alumne
 # Exemple de sortida: alumne  tty2   :1    09:30   3:20  ...
 #                                         ^^
-# El display és :1
+# El display és el valor després de ttyX (:0, :1, etc.)
 ```
 
-Si `w` no mostra el display, busca els sockets X11 actius:
+Si `w` no mostra el display (apareix un guió `-`), busca els sockets X11 actius:
 
 ```bash
 ls /tmp/.X11-unix/
-# Mostrarà X0, X1, etc. Normalment :1 és el de l'usuari.
+# Mostrarà X0, X1, etc. El número correspon al display (:0, :1...).
+# Si només hi ha un socket, aquell és el display de l'usuari.
+```
+
+També pots comprovar-ho directament des de la sessió de l'alumne:
+
+```bash
+echo $DISPLAY
 ```
 
 ### Executar l'instal·lador
@@ -199,7 +211,7 @@ Paràmetres disponibles:
 sudo ./install-novnc-services.sh --password patata123
 
 # Especificar display manualment
-sudo ./install-novnc-services.sh --password patata123 --display :1
+sudo ./install-novnc-services.sh --password patata123 --display :0
 ```
 
 ### Què fa l'script
@@ -231,5 +243,5 @@ echo "http://$(hostname -I | awk '{print $1}'):6080/vnc_iframe.html"
 git clone --depth 1 https://github.com/aniollidon/palamblock-palamos-linux.git /tmp/palamblock
 cd /tmp/palamblock/palam-dash 
 sudo apt install make 
-sudo make service user=alumne display=:0
+sudo make install user=alumne display=:0
 ```
