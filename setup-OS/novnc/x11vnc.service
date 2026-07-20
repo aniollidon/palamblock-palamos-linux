@@ -1,0 +1,16 @@
+[Unit]
+Description=VNC Server for X11
+Requires=display-manager.service
+After=syslog.target network-online.target
+Wants=syslog.target network-online.target
+
+[Service]
+ExecStart=/usr/bin/x11vnc -auth /run/user/{{UID}}/gdm/Xauthority -forever -loop -noxdamage -repeat -display {{DISPLAY}} -rfbauth /etc/x11vnc.pwd -rfbport 5900 -shared -o /var/log/x11vnc.log
+ExecStop=/usr/bin/killall x11vnc
+Restart=on-failure
+RestartSec=2
+User={{USER}}
+Group={{USER}}
+
+[Install]
+WantedBy=multi-user.target

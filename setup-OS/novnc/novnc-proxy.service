@@ -1,0 +1,17 @@
+[Unit]
+Description=noVNC proxy (localhost:5900 -> websocket 6080)
+After=network.target
+
+[Service]
+Type=simple
+User={{USER}}
+Group={{USER}}
+WorkingDirectory={{NOVNC_DIR}}
+ExecStart={{NOVNC_DIR}}/utils/novnc_proxy --vnc localhost:5900 --listen 6080
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/palamos-dashboard/novnc.log
+StandardError=append:/var/log/palamos-dashboard/novnc.log
+
+[Install]
+WantedBy=multi-user.target

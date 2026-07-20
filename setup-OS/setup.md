@@ -94,16 +94,44 @@ sudo mkdir -p /etc/firefox/policies
 wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/policies/brave/palamblock_policies.json -O /etc/brave/policies/managed/palamblock_policies.json
 wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/policies/firefox/policies.json -O /etc/firefox/policies/policies.json
 
-# Per la plantilla examen (eliminiem anell de claus)
+# Per la plantilla examen (desactiva el gestor de contrasenyes intern)
 wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/policies/brave/examen_policies.json -O /etc/brave/policies/managed/examen_policies.json
 ```
 
-## Restriccions de l'usuari alumne
+### Anell de claus (keyring) – Plantilla examen
+
+Amb autologin + sense contrasenya, el keyring de GNOME no es desbloqueja i Brave/Firefox mostren un diàleg cada cop que s'obren.
+
+**Solució:** configurar PAM perquè desbloquegi el keyring amb la contrasenya d'inici de sessió (buida) i esborrar el keyring existent.
+
+```bash
+# 3. Esborrar el keyring antic (es regenerarà amb contrasenya buida)
+sudo rm -rf /home/alumne/.local/share/keyrings/
+```
+
+**Revertir** (tornar al comportament normal amb contrasenya):
+
+```bash
+# 2. Posar contrasenya a l'usuari
+sudo passwd alumne
+
+# 3. Esborrar el keyring (es regenerarà amb la contrasenya nova)
+sudo rm -rf /home/alumne/.local/share/keyrings/
+```
+
+## Restriccions de l'usuari alumne i fons de pantalla
+
+Descarrega i copia el fons de pantalla:
+
+```bash
+sudo mkdir -p /usr/share/wallpapers
+sudo wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/background-pb.png -O /usr/share/wallpapers/background-pb.png
+```
 
 Executa l'script `custom-os.sh` per aplicar polkit, dconf i permisos:
 
 ```bash
-wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/custom-os.sh -O /tmp/custom-os.sh && sudo bash /tmp/custom-os.sh
+wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/custom-rules.sh -O /tmp/custom-rules.sh && sudo bash /tmp/custom-rules.sh
 ```
 
 Bloqueja a l'alumne:
@@ -112,15 +140,95 @@ Bloqueja a l'alumne:
 + Canvi de fons d'escriptori
 + Obrir Configuració (GNOME Settings)
 
-## Grub i fons de pantalla
-Es posa un grub personalitzat
-
-https://github.com/vinceliuice/grub2-themes
-Amb el fons de pantalla wallaper/background.jpg
-
-Es posa el fons de pantalla personalitzat
-
+## Grub
+GRUB: Seguir [instal·lació](grub/readme.md)
 
 ## Altres
 + S'ha configurat CONTROL+ALT+T o WIN+T per obrir terminal
 + Tema fosc
+
+## Instal·lar x11vnc + noVNC (control remot de pantalla)
+
+Aquests serveis permeten veure i controlar remotament la pantalla de l'alumne:
+
+- **x11vnc**: captura el display X11 de l'alumne i el serveix per VNC (port 5900)
+- **noVNC**: proxy WebSocket que tradueix VNC a HTML5 (port 6080)
+
+### Detectar el display X
+
+Abans d'instal·lar, l'usuari `alumne` ha d'haver iniciat sessió gràfica. Per saber quin display X fa servir:
+
+```bash
+# Com a super
+w -h alumne
+# Exemple de sortida: alumne  tty2   :1    09:30   3:20  ...
+#                                         ^^
+# El display és :1
+```
+
+Si `w` no mostra el display, busca els sockets X11 actius:
+
+```bash
+ls /tmp/.X11-unix/
+# Mostrarà X0, X1, etc. Normalment :1 és el de l'usuari.
+```
+
+### Executar l'instal·lador
+
+L'script `install-novnc-services.sh` fa tota la instal·lació. **L'executa l'usuari `super` amb `sudo`:**
+
+```bash
+# Des de la carpeta setup-OS del repositori clonat:
+sudo ./install-novnc-services.sh --password CONTRASENYA_VNC
+```
+
+Paràmetres disponibles:
+
+| Paràmetre | Default | Descripció |
+|---|---|---|
+| `--password PWD` | *(obligatori)* | Contrasenya per connectar-se via VNC |
+| `--user USER` | `alumne` | Usuari de la sessió X a capturar |
+| `--display :N` | autodetectar | Display X a capturar (ex: `:1`) |
+| `--novnc-user USER` | `super` | Usuari que executa el proxy noVNC |
+| `--novnc-dir DIR` | `$HOME/noVNC` | Directori on instal·lar noVNC |
+
+**Exemples:**
+
+```bash
+# Instal·lació bàsica (autodetectar display)
+sudo ./install-novnc-services.sh --password patata123
+
+# Especificar display manualment
+sudo ./install-novnc-services.sh --password patata123 --display :1
+```
+
+### Què fa l'script
+
+1. Instal·la `x11vnc` via `apt`
+2. Crea el fitxer de contrasenya `/etc/x11vnc.pwd`
+3. Crea i activa `x11vnc.service` (corre com a `alumne`, captura el display)
+4. Clona `noVNC` de GitHub a `~super/noVNC`
+5. Instal·la dependències `npm`
+6. Copia el fitxer `vnc_iframe.html` personalitzat (suporta `?view=true`)
+7. Crea i activa `novnc-proxy.service` (corre com a `super`, port 6080)
+
+### Verificar la instal·lació
+
+```bash
+# Comprovar serveis
+sudo systemctl status x11vnc.service
+sudo systemctl status novnc-proxy.service
+
+# Comprovar ports
+ss -tlnp | grep -E '5900|6080'
+
+# Provar al navegador (des d'una altra màquina)
+echo "http://$(hostname -I | awk '{print $1}'):6080/vnc_iframe.html"
+```
+
+# Instal·lant palamDash
+```
+git clone --depth 1 https://github.com/aniollidon/palamblock-palamos-linux.git /tmp/palamblock
+cd /tmp/palamblock/palamOS-linux/palam-dash
+sudo make install
+```
