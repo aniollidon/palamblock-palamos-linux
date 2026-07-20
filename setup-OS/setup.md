@@ -229,6 +229,7 @@ echo "http://$(hostname -I | awk '{print $1}'):6080/vnc_iframe.html"
 # Instal·lant palamDash
 ```
 git clone --depth 1 https://github.com/aniollidon/palamblock-palamos-linux.git /tmp/palamblock
-cd /tmp/palamblock/palamOS-linux/palam-dash
-sudo make install
+cd /tmp/palamblock/palam-dash 
+sudo apt install make 
+sudo make service user=alumne display=:0
 ```
