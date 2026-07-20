@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-APP="/data/palamos-dashboard/palam-dash.AppImage"
+APP="/data/palamos-dashboard/bin/palam-dash.AppImage"
 DATA_DIR="/data/palamos-dashboard/data"
 DISPLAY_VAL=":1"
 WAIT_SECS=5

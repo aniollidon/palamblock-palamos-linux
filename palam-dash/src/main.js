@@ -1007,12 +1007,12 @@ autoUpdater.on("update-downloaded", (info) => {
   const downloadedFile = info.downloadedFile;
   if (downloadedFile && fs.existsSync(downloadedFile)) {
     try {
-      const targetPath = "/data/palamos-dashboard/palam-dash.AppImage";
+      const targetPath = "/data/palamos-dashboard/bin/palam-dash.AppImage";
       fs.copyFileSync(downloadedFile, targetPath);
       fs.chmodSync(targetPath, 0o755);
       log.info("AppImage actualitzada a", targetPath);
     } catch (err) {
-      log.error("Error copiant AppImage a /data/palamos-dashboard:", err);
+      log.error("Error copiant AppImage a /data/palamos-dashboard/bin:", err);
     }
   } else {
     log.warn("No s'ha trobat el fitxer descarregat a:", downloadedFile);

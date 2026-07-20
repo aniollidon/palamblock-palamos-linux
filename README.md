@@ -40,52 +40,29 @@ a alumne), així que no es poden modificar.
 npm run build
 ```
 
-### Instal·lar com a servei (unitat d'usuari)
-
-El servei ara és EXCLUSIVAMENT d'usuari (no sistema). Necessites indicar quin usuari l'executarà.
-
-1. Instal·la dependències: `./install-dependencies-ubuntu.sh`
-2. Compila: `npm run build`
-3. Instal·la la unitat (com a root perquè copia a `/data`):
+### Instal·lar com a servei
 
 ```bash
-sudo ./install-service-linux.sh --user <usuari_escriptori> --display :0
+git clone --depth 1 https://github.com/aniollidon/palamblock-palamos-linux.git /tmp/palamblock
+cd /tmp/palamblock/palam-dash
+sudo make install user=alumne display=:0
 ```
-
-4. Si durant la instal·lació encara no hi havia sessió gràfica d'aquest usuari veuràs estat "pendent".
-5. Després QUE L'USUARI FACI LOGIN (mateixa sessió):
-
-```bash
-systemctl --user daemon-reload
-systemctl --user enable --now palamos-dashboard
-```
-
-6. En reinicis futurs s'activarà automàticament en iniciar sessió.
 
 Opcional: ajusta `--display :1` si uses un altre servidor X.
 
-### informació del servei
+### Logs
 
-1. Estat: `systemctl --user status palamos-dashboard`
-2. Logs: `journalctl --user -u palamos-dashboard -f`
-3. Fitxers logs: `/data/palamos-dashboard/data/logs/main.log` (electron-log, persistent)
+```bash
+# Logs persistents (electron-log)
+tail -f /data/palamos-dashboard/data/logs/main.log
 
-   ```
-   /data/palamos-dashboard/data/logs/main.log
-   ~/.local/share/palamamos-dashboard/logs/app.log   (stdout, no persistent)
-   ~/.local/share/palamamos-dashboard/logs/error.log  (stderr, no persistent)
-   ```
+# Logs stdout/stderr (systemd, no persistents)
+tail -f ~/.local/share/palamamos-dashboard/logs/app.log
+tail -f ~/.local/share/palamamos-dashboard/logs/error.log
 
-4. Journal (temps real)
-
-   ```
-   journalctl --user -u palamos-dashboard -f
-   ```
-
-5. Estat pendent després instal·lació: (després login) `systemctl --user enable --now palamos-dashboard`
-6. "Failed to connect to bus": l'usuari no té sessió systemd (fes login gràfic o TTY normal).
-7. Reinici ràpid: `systemctl --user restart palamos-dashboard`
-8. Regenerar unitat: tornar a executar script d'instal·lació.
+# Journal en temps real
+journalctl --user -u palamos-dashboard -f
+```
 
 ## Serveis VNC
 

@@ -85,12 +85,13 @@ if [ -d "/data/palamos-dashboard" ]; then
 fi
 
 # Crea el directori del servei
-mkdir -p /data/palamos-dashboard
+mkdir -p /data/palamos-dashboard/bin
+mkdir -p /data/palamos-dashboard/data
 
 # Copia l'AppImage
 echo "Copiant AppImage..."
-cp "$APPIMAGE_FILE" /data/palamos-dashboard/palam-dash.AppImage
-chmod +x /data/palamos-dashboard/palam-dash.AppImage
+cp "$APPIMAGE_FILE" /data/palamos-dashboard/bin/palam-dash.AppImage
+chmod +x /data/palamos-dashboard/bin/palam-dash.AppImage
 
 # Copia els scripts
 echo "Copia els scripts..."
@@ -109,13 +110,13 @@ if [ -f "run.sh" ]; then
         echo "DISPLAY_VAL=\"$DISPLAY_VALUE\"" >> /data/palamos-dashboard/run.sh
     fi
     # Actualitzar ruta APP al run.sh copiat
-    sed -i "s|^APP=.*|APP=\"/data/palamos-dashboard/palam-dash.AppImage\"|" /data/palamos-dashboard/run.sh
+    sed -i "s|^APP=.*|APP=\"/data/palamos-dashboard/bin/palam-dash.AppImage\"|" /data/palamos-dashboard/run.sh
 else
     echo "Generant run.sh (plantilla) amb DISPLAY=$DISPLAY_VALUE..."
     cat > /data/palamos-dashboard/run.sh << RSEOF
 #!/bin/bash
 set -euo pipefail
-APP="/data/palamos-dashboard/palam-dash.AppImage"
+APP="/data/palamos-dashboard/bin/palam-dash.AppImage"
 DATA_DIR="/data/palamos-dashboard/data"
 DISPLAY_VAL="$DISPLAY_VALUE"
 WAIT_SECS=5
@@ -165,7 +166,7 @@ else
     echo "Avís: No s'ha trobat cap fitxer .env ni env.example. Continuant sense configuració."
 fi
 
-echo "Configurant permisos (seguretat: alumne només pot escriure a data/)..."
+echo "Configurant permisos (seguretat: alumne només pot escriure a bin/ i data/)..."
 # Directori arrel: root:root, alumne només lectura (no pot esborrar fitxers)
 chown root:root /data/palamos-dashboard
 chmod 755 /data/palamos-dashboard
@@ -176,12 +177,13 @@ chmod 755 /data/palamos-dashboard/run.sh 2>/dev/null || true
 chmod 644 /data/palamos-dashboard/.env 2>/dev/null || true
 [ -d /data/palamos-dashboard/scripts ] && chown -R root:root /data/palamos-dashboard/scripts && chmod -R 755 /data/palamos-dashboard/scripts
 
-# AppImage: root:alumne 775 (alumne pot actualitzar-la però no esborrar-la del directori)
-chown root:$SERVICE_RUN_USER /data/palamos-dashboard/palam-dash.AppImage
-chmod 775 /data/palamos-dashboard/palam-dash.AppImage
+# bin/: root:alumne 775 (alumne pot reemplaçar l'AppImage per actualitzar-la)
+chown root:$SERVICE_RUN_USER /data/palamos-dashboard/bin
+chmod 775 /data/palamos-dashboard/bin
+chown root:$SERVICE_RUN_USER /data/palamos-dashboard/bin/palam-dash.AppImage
+chmod 775 /data/palamos-dashboard/bin/palam-dash.AppImage
 
 # data/: alumne hi pot escriure lliurement (.user, .server, screenshots...)
-mkdir -p /data/palamos-dashboard/data
 chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER /data/palamos-dashboard/data
 chmod 755 /data/palamos-dashboard/data
 SERVICE_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
