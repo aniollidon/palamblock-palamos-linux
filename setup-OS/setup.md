@@ -17,8 +17,8 @@ Hi ha dues plantilles:
 
 
 
-# Instal·lació debian amb GNOME
-S'ha seguit el setup en català...
+# Passos seguits durant l'instal·lació
+Primerament fem l'instal·lació debian amb GNOME, setup en català...
 
 ## Particions
 | # | Punt de muntatge | Mida   | Sistema de fitxers | Opcions               | Notes                          |

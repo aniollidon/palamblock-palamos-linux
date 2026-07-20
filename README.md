@@ -8,6 +8,9 @@ If you are a student attempting to disable this tool, please contact your teache
 # Setup-OS:
 Modificacions a un sistema operatiu amb base debian per garantir el funcionament de la màquina alumne.
 
+Segueix les [instruccions d'instal·lació](setup-OS/setup.md) dels diferents components
+
+
 # PalamDash: PalamOS Dashboard
 
 Aplicació Electron que funciona com a servei (unitat d'usuari systemd) per a PalamOS, connectant-se amb un servidor WebSocket i mostrant un dashboard a pantalla completa controlat remotament.
