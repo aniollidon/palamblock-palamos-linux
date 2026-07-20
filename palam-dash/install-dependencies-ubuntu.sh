@@ -64,8 +64,7 @@ sudo apt install -y \
     libdbus-1-dev \
     libudev-dev \
     libcups2-dev \
-    libvips-dev \
-    wayvnc
+    libvips-dev
 
 # Instal·la Node.js i npm si no estan instal·lats
 if ! command -v node &> /dev/null; then
@@ -98,14 +97,6 @@ if [ -f "$SANDBOX_PATH" ]; then
 else
     echo "AVÍS: No s'ha trobat chrome-sandbox a $SANDBOX_PATH"
     echo "Executa 'npm install' primer i torna a executar aquest script."
-fi
-
-# Instal·la PM2 globalment si no està instal·lat
-if ! command -v pm2 &> /dev/null; then
-    echo "Instal·lant PM2..."
-    sudo npm install -g pm2
-else
-    echo "PM2 ja està instal·lat: $(pm2 --version)"
 fi
 
 echo
