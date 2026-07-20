@@ -241,16 +241,24 @@ else
 fi
 
 # -----------------------------------------------------------------------------
-# 6. Copiar vnc_iframe.html personalitzat
+# 6. Copiar vnc_iframe.html i vnc.html personalitzats
 # -----------------------------------------------------------------------------
 
-log_info "Copiant fitxer vnc_iframe.html personalitzat..."
+log_info "Copiant fitxers vnc_iframe.html i vnc.html personalitzats..."
 if [ -f "$NOVNC_ASSETS/vnc_iframe.html" ]; then
     cp "$NOVNC_ASSETS/vnc_iframe.html" "$NOVNC_DIR/vnc_iframe.html"
     chown "$NOVNC_USER:$(id -gn "$NOVNC_USER")" "$NOVNC_DIR/vnc_iframe.html"
     log_info "vnc_iframe.html copiat (suporta ?view=true per bloquejar interacció)."
 else
     log_warn "No s'ha trobat $NOVNC_ASSETS/vnc_iframe.html. S'usarà l'original de noVNC."
+fi
+
+if [ -f "$NOVNC_ASSETS/vnc.html" ]; then
+    cp "$NOVNC_ASSETS/vnc.html" "$NOVNC_DIR/vnc.html"
+    chown "$NOVNC_USER:$(id -gn "$NOVNC_USER")" "$NOVNC_DIR/vnc.html"
+    log_info "vnc.html copiat (suporta ?password=... per autenticació)."
+else
+    log_warn "No s'ha trobat $NOVNC_ASSETS/vnc.html. S'usarà l'original de noVNC."
 fi
 
 # -----------------------------------------------------------------------------
