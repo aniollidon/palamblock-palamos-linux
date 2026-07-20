@@ -2,7 +2,7 @@ const http = require("http");
 const { logger } = require("./logger");
 
 let bridgeServer = null;
-let currentCredentials = { server: "", alumne: "" };
+let currentCredentials = { server: "", alumne: "", secondaryServer: "" };
 
 /**
  * Inicia el servidor HTTP del pont local.
@@ -10,12 +10,14 @@ let currentCredentials = { server: "", alumne: "" };
  * @param {string} serverUrl - URL del servidor palamSRV
  * @param {string} username - Nom d'alumne autenticat
  * @param {number} port - Port (per defecte 9876)
+ * @param {string} secondaryServerUrl - URL del servidor secundari
  */
-function startBridgeServer(serverUrl, username, port = 9876) {
+function startBridgeServer(serverUrl, username, port = 9876, secondaryServerUrl = "") {
   if (bridgeServer) return;
 
   currentCredentials.server = serverUrl;
   currentCredentials.alumne = username;
+  currentCredentials.secondaryServer = secondaryServerUrl;
 
   bridgeServer = http.createServer((req, res) => {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -28,6 +30,7 @@ function startBridgeServer(serverUrl, username, port = 9876) {
           JSON.stringify({
             server: currentCredentials.server,
             alumne: currentCredentials.alumne,
+            secondaryServer: currentCredentials.secondaryServer || currentCredentials.server,
           }),
         );
       } else {

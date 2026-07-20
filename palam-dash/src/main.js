@@ -673,7 +673,7 @@ app.whenReady().then(() => {
       connectToServer();
       // Inicia el pont local
       const bridgePort = parseInt(process.env.BRIDGE_PORT, 10) || 9876;
-      startBridgeServer(selectedServerUrl, username, bridgePort);
+      startBridgeServer(selectedServerUrl, username, bridgePort, SECONDARY_SERVER_URL);
     }
   } else {
     logger.info("No hi ha usuari logat, mostrant login...");
@@ -978,7 +978,7 @@ ipcMain.handle("login-completed", () => {
 
   // Inicia el pont local per a l'extensió del navegador
   const bridgePort = parseInt(process.env.BRIDGE_PORT, 10) || 9876;
-  startBridgeServer(selectedServerUrl, username, bridgePort);
+  startBridgeServer(selectedServerUrl, username, bridgePort, SECONDARY_SERVER_URL);
 
   return { success: true };
 });
