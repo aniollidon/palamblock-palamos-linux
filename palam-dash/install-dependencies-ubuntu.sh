@@ -66,6 +66,12 @@ sudo apt install -y \
     libcups2-dev \
     libvips-dev
 
+# Instal·la libfuse2 (necessari per executar AppImages)
+if ! dpkg -l | grep -q libfuse2; then
+    echo "Instal·lant libfuse2 (necessari per AppImages)..."
+    sudo apt install -y libfuse2
+fi
+
 # Instal·la Node.js i npm si no estan instal·lats
 if ! command -v node &> /dev/null; then
     echo "Instal·lant Node.js..."
