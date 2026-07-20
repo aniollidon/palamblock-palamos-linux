@@ -239,6 +239,16 @@ fi
 
 echo "Servei d'usuari creat per: $SERVICE_RUN_USER (estat: $( [ "$ENABLE_OK" = true ] && echo 'habilitat' || echo 'pendent' ))"
 
+# Configurar sudoers perquè alumne pugui executar shutdown i scripts (sense password)
+SUDOERS_FILE="/etc/sudoers.d/palamos-dashboard"
+echo "Configurant sudoers ($SUDOERS_FILE)..."
+cat > "$SUDOERS_FILE" << SUDOEOF
+$SERVICE_RUN_USER ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/reboot, /sbin/poweroff, /sbin/halt
+$SERVICE_RUN_USER ALL=(ALL) NOPASSWD: /data/palamos-dashboard/scripts/*
+SUDOEOF
+chmod 440 "$SUDOERS_FILE"
+echo "sudoers configurat: $SERVICE_RUN_USER pot executar shutdown i scripts sense password."
+
 echo
 echo "Com a $SERVICE_RUN_USER després del primer login executa (si estat pendent):"
 if [ "$ENABLE_OK" = false ]; then

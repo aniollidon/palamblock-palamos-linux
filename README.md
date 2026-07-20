@@ -22,10 +22,17 @@ Aplicació Electron que funciona com a servei (unitat d'usuari systemd) per a Pa
 
 #### Configuració del fitxer sudoers
 
+L'script d'instal·lació crea automàticament `/etc/sudoers.d/palamos-dashboard` amb:
+
 ```bash
-alumne ALL=(ALL) /sbin/shutdown, /sbin/reboot, /sbin/poweroff, /sbin/halt
-alumne ALL=(ALL) /opt/palamos-dashboard/scripts/*
+alumne ALL=(ALL) NOPASSWD: /sbin/shutdown, /sbin/reboot, /sbin/poweroff, /sbin/halt
+alumne ALL=(ALL) NOPASSWD: /data/palamos-dashboard/scripts/*
 ```
+
+Això permet que palam-dash pugui apagar/reiniciar la màquina i executar
+scripts del professor des del panell de control, sense que l'alumne hagi
+de tenir password. Els scripts són propietat de root (només lectura per
+a alumne), així que no es poden modificar.
 
 ### Compilar
 
@@ -39,27 +46,21 @@ El servei ara és EXCLUSIVAMENT d'usuari (no sistema). Necessites indicar quin u
 
 1. Instal·la dependències: `./install-dependencies-ubuntu.sh`
 2. Compila: `npm run build`
-3. Caldrà posar la contrassenya a x11vnc
-
-```bash
-sudo x11vnc -storepasswd <contrasenya> /etc/x11vnc.pwd
-```
-
-4. Instal·la la unitat (com a root perquè copia a `/opt`):
+3. Instal·la la unitat (com a root perquè copia a `/data`):
 
 ```bash
 sudo ./install-service-linux.sh --user <usuari_escriptori> --display :0
 ```
 
-5. Si durant la instal·lació encara no hi havia sessió gràfica d'aquest usuari veuràs estat "pendent".
-6. Després QUE L'USUARI FACI LOGIN (mateixa sessió):
+4. Si durant la instal·lació encara no hi havia sessió gràfica d'aquest usuari veuràs estat "pendent".
+5. Després QUE L'USUARI FACI LOGIN (mateixa sessió):
 
 ```bash
 systemctl --user daemon-reload
 systemctl --user enable --now palamos-dashboard
 ```
 
-7. En reinicis futurs s'activarà automàticament en iniciar sessió.
+6. En reinicis futurs s'activarà automàticament en iniciar sessió.
 
 Opcional: ajusta `--display :1` si uses un altre servidor X.
 
@@ -67,11 +68,12 @@ Opcional: ajusta `--display :1` si uses un altre servidor X.
 
 1. Estat: `systemctl --user status palamos-dashboard`
 2. Logs: `journalctl --user -u palamos-dashboard -f`
-3. Fitxers logs: `~/.local/share/palamamos-dashboard/logs/`
+3. Fitxers logs: `/data/palamos-dashboard/data/logs/main.log` (electron-log, persistent)
 
    ```
-   ~/.local/share/palamamos-dashboard/logs/app.log
-   ~/.local/share/palamamos-dashboard/logs/error.log
+   /data/palamos-dashboard/data/logs/main.log
+   ~/.local/share/palamamos-dashboard/logs/app.log   (stdout, no persistent)
+   ~/.local/share/palamamos-dashboard/logs/error.log  (stderr, no persistent)
    ```
 
 4. Journal (temps real)
@@ -85,10 +87,7 @@ Opcional: ajusta `--display :1` si uses un altre servidor X.
 7. Reinici ràpid: `systemctl --user restart palamos-dashboard`
 8. Regenerar unitat: tornar a executar script d'instal·lació.
 
-## Servei addicional noVNC
+## Serveis VNC
 
-Si existeix `/home/super/noVNC/utils/novnc_proxy` l'script crea `novnc-proxy.service` (servei de sistema) exposant VNC via WebSocket :6080. Per desactivar:
-
-```
-sudo systemctl disable --now novnc-proxy
-```
+`x11vnc` i `noVNC` s'instal·len per separat amb `install-novnc-services.sh`
+(veure [setup-OS/setup.md](setup-OS/setup.md)).
