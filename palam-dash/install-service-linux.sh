@@ -94,6 +94,7 @@ chmod +x /data/palamos-dashboard/palam-dash.AppImage
 
 # Copia els scripts
 echo "Copia els scripts..."
+mkdir -p /data/palamos-dashboard/scripts
 cp -r scripts/* /data/palamos-dashboard/scripts/
 
 # Copia / crea run.sh i fixa DISPLAY

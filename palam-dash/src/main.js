@@ -894,6 +894,7 @@ ipcMain.handle("start-google-auth", async () => {
       width: 500,
       height: 650,
       icon: APP_ICON,
+      parent: loginWindow || mainWindow,
       show: false,
       resizable: true,
       alwaysOnTop: true,
@@ -912,6 +913,7 @@ ipcMain.handle("start-google-auth", async () => {
 
     authWindow.once("ready-to-show", () => {
       authWindow.show();
+      authWindow.focus();
     });
 
     let resolved = false;
