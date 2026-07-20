@@ -19,7 +19,7 @@ function normalizeSsid(raw) {
 
 async function getCurrentSSID() {
 	// Try NetworkManager (nmcli)
-	const nmcli = await execFileAsync('nmcli', ['-t', '-f', 'active,ssid', 'dev', 'wifi']);
+	const nmcli = await execFileAsync('nmcli', ['-t', '-f', 'active,ssid', 'dev', 'wifi'], { env: { ...process.env, LC_ALL: 'C' } });
 	if (nmcli.ok) {
 		const line = nmcli.stdout
 			.split('\n')
