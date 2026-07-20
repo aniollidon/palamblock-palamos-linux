@@ -3,7 +3,7 @@
 # Variables
 APP_NAME = palamos-dashboard
 SERVICE_NAME = palamos-dashboard.service
-INSTALL_DIR = /opt/palamos-dashboard
+INSTALL_DIR = /data/palamos-dashboard
 USER_NAME = palamos-dashboard
 
 help: ## Mostra aquesta ajuda

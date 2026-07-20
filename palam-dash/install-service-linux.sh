@@ -67,7 +67,7 @@ fi
 
 # Ho parem tot i esborrem directoris
 echo "Aturant serveis anteriors i netejant directoris..."
-if [ -d "/opt/palamos-dashboard" ]; then
+if [ -d "/data/palamos-dashboard" ]; then
     # Aturem el servei com a l'usuari especificat
     UID_NUM=$(id -u "$SERVICE_RUN_USER")
     USER_RUNTIME_DIR="/run/user/$UID_NUM"
@@ -81,61 +81,107 @@ if [ -d "/opt/palamos-dashboard" ]; then
     
     # Esborrem el directori
     echo "Esborrant directori d'instal·lació anterior..."
-    rm -rf /opt/palamos-dashboard
+    rm -rf /data/palamos-dashboard
 fi
 
 # Crea el directori del servei
-mkdir -p /opt/palamos-dashboard
+mkdir -p /data/palamos-dashboard
 
 # Copia l'AppImage
 echo "Copiant AppImage..."
-cp "$APPIMAGE_FILE" /opt/palamos-dashboard/palam-dash.AppImage
-chmod +x /opt/palamos-dashboard/palam-dash.AppImage
+cp "$APPIMAGE_FILE" /data/palamos-dashboard/palam-dash.AppImage
+chmod +x /data/palamos-dashboard/palam-dash.AppImage
 
 # Copia els scripts
 echo "Copia els scripts..."
-cp -r scripts/* /opt/palamos-dashboard/scripts/
+cp -r scripts/* /data/palamos-dashboard/scripts/
 
 # Copia / crea run.sh i fixa DISPLAY
-EXEC_START="/opt/palamos-dashboard/run.sh"
+EXEC_START="/data/palamos-dashboard/run.sh"
 if [ -f "run.sh" ]; then
     echo "Copiant run.sh i establint DISPLAY=$DISPLAY_VALUE..."
-    cp run.sh /opt/palamos-dashboard/run.sh
+    cp run.sh /data/palamos-dashboard/run.sh
     # Intenta substituir línia DISPLAY_VAL; si no existeix, afegeix-la
-    if grep -q '^DISPLAY_VAL=' /opt/palamos-dashboard/run.sh; then
-        sed -i "s|^DISPLAY_VAL=.*|DISPLAY_VAL=\"$DISPLAY_VALUE\"|" /opt/palamos-dashboard/run.sh
+    if grep -q '^DISPLAY_VAL=' /data/palamos-dashboard/run.sh; then
+        sed -i "s|^DISPLAY_VAL=.*|DISPLAY_VAL=\"$DISPLAY_VALUE\"|" /data/palamos-dashboard/run.sh
     else
-        echo "DISPLAY_VAL=\"$DISPLAY_VALUE\"" >> /opt/palamos-dashboard/run.sh
+        echo "DISPLAY_VAL=\"$DISPLAY_VALUE\"" >> /data/palamos-dashboard/run.sh
     fi
+    # Actualitzar ruta APP al run.sh copiat
+    sed -i "s|^APP=.*|APP=\"/data/palamos-dashboard/palam-dash.AppImage\"|" /data/palamos-dashboard/run.sh
 else
     echo "Generant run.sh (plantilla) amb DISPLAY=$DISPLAY_VALUE..."
-    cat > /opt/palamos-dashboard/run.sh << RSEOF
+    cat > /data/palamos-dashboard/run.sh << RSEOF
 #!/bin/bash
 set -euo pipefail
-APP="/opt/palamos-dashboard/palam-dash.AppImage"
+APP="/data/palamos-dashboard/palam-dash.AppImage"
+DATA_DIR="/data/palamos-dashboard/data"
 DISPLAY_VAL="$DISPLAY_VALUE"
-export DISPLAY="${DISPLAY_VAL}"
-echo "[run.sh] Iniciant amb DISPLAY=${DISPLAY}"
-exec "$APP"
+WAIT_SECS=5
+
+log(){ echo "[run.sh] \$*"; }
+
+# Assegurar que les dades persistents (.user, .server) sobrevisquin a congelacions
+# Electron guarda a ~/.config/palam-dash/, fem symlink a /data/
+CONFIG_DIR="\$HOME/.config/palam-dash"
+mkdir -p "\$DATA_DIR"
+if [ ! -L "\$CONFIG_DIR" ] || [ "\$(readlink -f "\$CONFIG_DIR" 2>/dev/null)" != "\$DATA_DIR" ]; then
+  rm -rf "\$CONFIG_DIR"
+  mkdir -p "\$(dirname "\$CONFIG_DIR")"
+  ln -sf "\$DATA_DIR" "\$CONFIG_DIR"
+  log "Dades persistents: \$CONFIG_DIR -> \$DATA_DIR"
+fi
+
+export DISPLAY="\$DISPLAY_VAL"
+if [ ! -S "/tmp/.X11-unix/\${DISPLAY_VAL#:}" ]; then
+  log "Socket X per \$DISPLAY_VAL no existeix. Esperant fins \${WAIT_SECS}s..."
+  for i in \$(seq 1 \$WAIT_SECS); do
+    if [ -S "/tmp/.X11-unix/\${DISPLAY_VAL#:}" ]; then
+      log "X disponible després de \${i}s"; break; fi
+    sleep 1
+  done
+fi
+if [ ! -S "/tmp/.X11-unix/\${DISPLAY_VAL#:}" ]; then
+  log "ATENCIÓ: No s'ha trobat el socket X a \$DISPLAY_VAL. L'aplicació pot fallar."
+fi
+
+log "Iniciant applicació: \$APP"
+exec "\$APP"
 RSEOF
 fi
-chmod +x /opt/palamos-dashboard/run.sh
+chmod +x /data/palamos-dashboard/run.sh
 
 
 # Crea l'arxiu .env al directori del servei
 echo "Copiant configuració (.env)..."
 if [ -f ".env" ]; then
-    cp .env /opt/palamos-dashboard/.env
+    cp .env /data/palamos-dashboard/.env
 elif [ -f "env.example" ]; then
     echo "Avís: .env no trobat. Usant env.example com a base."
-    cp env.example /opt/palamos-dashboard/.env
+    cp env.example /data/palamos-dashboard/.env
 else
     echo "Avís: No s'ha trobat cap fitxer .env ni env.example. Continuant sense configuració."
 fi
 
-echo "Configurant permisos perquè el servei el gestioni l'usuari: $SERVICE_RUN_USER"
-chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER /opt/palamos-dashboard
-chmod +x /opt/palamos-dashboard/palam-dash.AppImage
+echo "Configurant permisos (seguretat: alumne només pot escriure a data/)..."
+# Directori arrel: root:root, alumne només lectura (no pot esborrar fitxers)
+chown root:root /data/palamos-dashboard
+chmod 755 /data/palamos-dashboard
+
+# run.sh, .env, scripts/: només lectura per a alumne
+chown root:root /data/palamos-dashboard/run.sh /data/palamos-dashboard/.env 2>/dev/null || true
+chmod 755 /data/palamos-dashboard/run.sh 2>/dev/null || true
+chmod 644 /data/palamos-dashboard/.env 2>/dev/null || true
+[ -d /data/palamos-dashboard/scripts ] && chown -R root:root /data/palamos-dashboard/scripts && chmod -R 755 /data/palamos-dashboard/scripts
+
+# AppImage: root:alumne 775 (alumne pot actualitzar-la però no esborrar-la del directori)
+chown root:$SERVICE_RUN_USER /data/palamos-dashboard/palam-dash.AppImage
+chmod 775 /data/palamos-dashboard/palam-dash.AppImage
+
+# data/: alumne hi pot escriure lliurement (.user, .server, screenshots...)
+mkdir -p /data/palamos-dashboard/data
+chown -R $SERVICE_RUN_USER:$SERVICE_RUN_USER /data/palamos-dashboard/data
+chmod 755 /data/palamos-dashboard/data
 SERVICE_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
 
 USER_HOME=$(getent passwd "$SERVICE_RUN_USER" | cut -d: -f6)
@@ -158,8 +204,8 @@ Wants=network-online.target
 [Service]
 Type=simple
 Environment=DISPLAY=$DISPLAY_VALUE
-WorkingDirectory=/opt/palamos-dashboard
-ExecStart=/opt/palamos-dashboard/run.sh
+WorkingDirectory=/data/palamos-dashboard
+ExecStart=/data/palamos-dashboard/run.sh
 Restart=always
 RestartSec=10
 StandardOutput=append:$USER_LOG_DIR/app.log

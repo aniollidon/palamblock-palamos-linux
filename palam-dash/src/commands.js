@@ -4,13 +4,13 @@ const linux_sudo = {
   apaga: "poweroff",
   "apaga-rapid": "halt",
   "apaga-tot": "shutdown -h now",
-  pausa: "/opt/palamos-dashboard/scripts/pausa.sh",
-  repren: "/opt/palamos-dashboard/scripts/repren.sh",
-  actualitza: "/opt/palamos-dashboard/run.sh",
+  pausa: "/data/palamos-dashboard/scripts/pausa.sh",
+  repren: "/data/palamos-dashboard/scripts/repren.sh",
+  actualitza: "/data/palamos-dashboard/run.sh",
 };
 
 const linux = {
-  missatge: "/opt/palamos-dashboard/scripts/missatge.sh",
+  missatge: "/data/palamos-dashboard/scripts/missatge.sh",
 };
 
 module.exports = { linux, linux_sudo };

@@ -1001,16 +1001,16 @@ autoUpdater.on("download-progress", (progressObj) => {
 autoUpdater.on("update-downloaded", (info) => {
   log.info("Actualització descarregada. Versió:", info.version);
 
-  // Copiar la nova AppImage a /opt/palamos-dashboard/ (no cal sudo, alumne hi té permisos)
+  // Copiar la nova AppImage a /data/palamos-dashboard/ (no cal sudo, alumne hi té permisos)
   const downloadedFile = info.downloadedFile;
   if (downloadedFile && fs.existsSync(downloadedFile)) {
     try {
-      const targetPath = "/opt/palamos-dashboard/palam-dash.AppImage";
+      const targetPath = "/data/palamos-dashboard/palam-dash.AppImage";
       fs.copyFileSync(downloadedFile, targetPath);
       fs.chmodSync(targetPath, 0o755);
       log.info("AppImage actualitzada a", targetPath);
     } catch (err) {
-      log.error("Error copiant AppImage a /opt/palamos-dashboard:", err);
+      log.error("Error copiant AppImage a /data/palamos-dashboard:", err);
     }
   } else {
     log.warn("No s'ha trobat el fitxer descarregat a:", downloadedFile);

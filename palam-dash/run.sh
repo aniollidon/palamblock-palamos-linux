@@ -1,11 +1,23 @@
 #!/bin/bash
 set -euo pipefail
 
-APP="/opt/palamos-dashboard/palam-dash.AppImage"
+APP="/data/palamos-dashboard/palam-dash.AppImage"
+DATA_DIR="/data/palamos-dashboard/data"
 DISPLAY_VAL=":1"
 WAIT_SECS=5
 
 log(){ echo "[run.sh] $*"; }
+
+# Assegurar que les dades persistents (.user, .server) sobrevisquin a congelacions
+# Electron guarda a ~/.config/palam-dash/, fem symlink a /data/
+CONFIG_DIR="$HOME/.config/palam-dash"
+mkdir -p "$DATA_DIR"
+if [ ! -L "$CONFIG_DIR" ] || [ "$(readlink -f "$CONFIG_DIR" 2>/dev/null)" != "$DATA_DIR" ]; then
+  rm -rf "$CONFIG_DIR"
+  mkdir -p "$(dirname "$CONFIG_DIR")"
+  ln -sf "$DATA_DIR" "$CONFIG_DIR"
+  log "Dades persistents: $CONFIG_DIR -> $DATA_DIR"
+fi
 
 export DISPLAY=$DISPLAY_VAL
 if [ ! -S "/tmp/.X11-unix/${DISPLAY_VAL#:}" ]; then
