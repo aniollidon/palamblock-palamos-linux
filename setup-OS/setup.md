@@ -85,9 +85,11 @@ gsettings set org.gnome.desktop.screensaver lock-enabled false
 + S'instal·la eclipse (plantilla examen)
 + S'instal·la mysql-workbench (plantilla examen)
 + S'instal·la mongodb-compass (plantilla examen)
++ visor Spice (plantilla examen)
 
 
 ```bash
+sudo apt update
 sudo apt install snapd
 sudo snap install code --classic
 
@@ -98,6 +100,8 @@ sudo snap install mysql-workbench-community
 wget https://downloads.mongodb.com/compass/mongodb-compass_1.47.1_amd64.deb
 sudo dpkg -i mongodb-compass_1.47.1_amd64.deb
 sudo apt --fix-broken install   # si falten dependències
+
+sudo apt install virt-viewer
 ```
 
 ### Politiques
