@@ -85,14 +85,17 @@ gsettings set org.gnome.desktop.screensaver lock-enabled false
 ### Politiques
 + Brave: /etc/brave/policies/managed
 + Firefox: /etc/firefox/policies
++ Vscode: /etc/vscode/
 
 ```bash
 sudo mkdir -p /etc/brave/policies/managed
 sudo mkdir -p /etc/firefox/policies
+sudo mkdir -p /etc/vscode/
 
 # Descarregar i copiar les polítiques
 wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/policies/brave/palamblock_policies.json -O /etc/brave/policies/managed/palamblock_policies.json
 wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/policies/firefox/policies.json -O /etc/firefox/policies/policies.json
+wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/policies/vscode/policy.json -O /etc/vscode/policy.json
 
 # Per la plantilla examen (desactiva el gestor de contrasenyes intern)
 wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/policies/brave/examen_policies.json -O /etc/brave/policies/managed/examen_policies.json
