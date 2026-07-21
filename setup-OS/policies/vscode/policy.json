@@ -1,3 +1,19 @@
 {
-    "chat.disableAIFeatures": true
+  "ChatAgentMode": false,
+  "ChatMCP": "none",
+  "ChatAgentExtensionTools": false,
+  "ChatPluginsEnabled": false,
+  "ChatHooks": false,
+  "BrowserChatTools": false,
+  "Claude3PIntegration": false,
+  "Codex3PIntegration": false,
+  "CopilotNextEditSuggestions": false,
+  "CopilotReviewSelection": false,
+  "CopilotReviewAgent": false,
+
+  "AllowedExtensions": {
+    "github.copilot": false,
+    "github.copilot-chat": false
+  }
 }
+

@@ -81,11 +81,30 @@ gsettings set org.gnome.desktop.screensaver lock-enabled false
 ## Programes
 + Es desintal·len programes no desitjats: contactes, mapes..
 + S'instal·la Brave
++ S'instal·la code
++ S'instal·la eclipse (plantilla examen)
++ S'instal·la mysql-workbench (plantilla examen)
++ S'instal·la mongodb-compass (plantilla examen)
+
+
+```bash
+sudo apt install snapd
+sudo snap install code --classic
+
+# PLANTILLA EXAMEN
+sudo snap install eclipse --classic
+sudo snap install mysql-workbench-community
+
+wget https://downloads.mongodb.com/compass/mongodb-compass_1.47.1_amd64.deb
+sudo dpkg -i mongodb-compass_1.47.1_amd64.deb
+sudo apt --fix-broken install   # si falten dependències
+```
 
 ### Politiques
 + Brave: /etc/brave/policies/managed
 + Firefox: /etc/firefox/policies
-+ Vscode: /etc/vscode/
++ VScode: /etc/vscode/
++ Mongodb-compass: /etc/mongodb-compass.conf
 
 ```bash
 sudo mkdir -p /etc/brave/policies/managed
@@ -99,6 +118,9 @@ wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/re
 
 # Per la plantilla examen (desactiva el gestor de contrasenyes intern)
 wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/policies/brave/examen_policies.json -O /etc/brave/policies/managed/examen_policies.json
+
+# Per la plantilla examen 
+wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/policies/mongodb-compass/mongodb-compass.conf -O /etc/mongodb-compass.conf
 ```
 
 ### Anell de claus (keyring) – Plantilla examen
