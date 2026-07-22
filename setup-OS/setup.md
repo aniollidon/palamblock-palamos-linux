@@ -256,6 +256,8 @@ Paràmetres disponibles:
 | `--novnc-user USER` | `super` | Usuari que executa el proxy noVNC |
 | `--novnc-dir DIR` | `$HOME/noVNC` | Directori on instal·lar noVNC |
 
+> ⚠️ Aquesta contrasenya ha de concidir amb la variable d'entorn `REMOTE_VNC_PASSWORD` (al .env) al servidor.
+
 **Exemples:**
 
 ```bash
