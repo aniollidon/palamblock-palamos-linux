@@ -204,6 +204,7 @@ function createLoginWindow(loginContext = { examOnly: false, baseUser: "" }) {
     alwaysOnTop: true,
     frame: false, // Sense barra de títol
     center: true,
+    fullscreen: false,
   });
 
   // Carrega la pàgina de login
@@ -212,7 +213,38 @@ function createLoginWindow(loginContext = { examOnly: false, baseUser: "" }) {
   // Mostra la finestra quan estigui carregada
   loginWindow.once("ready-to-show", () => {
     loginWindow.show();
+    // Força visibilitat a tots els escriptoris i sempre al davant
+    try {
+      loginWindow.setVisibleOnAllWorkspaces(true, {
+        visibleOnFullScreen: true,
+      });
+      loginWindow.setAlwaysOnTop(true, "screen-saver");
+      loginWindow.focus();
+    } catch {}
     logger.info("Login window oberta");
+  });
+
+  // Reforç de focus: si es minimitza o perd el focus, el recuperem
+  loginWindow.on("minimize", (e) => {
+    try { e.preventDefault(); } catch {}
+    try {
+      loginWindow.restore();
+      loginWindow.show();
+      loginWindow.focus();
+    } catch {}
+  });
+
+  loginWindow.on("blur", () => {
+    if (loginWindow && !isLoggedIn) {
+      setTimeout(() => {
+        try {
+          if (loginWindow) {
+            loginWindow.show();
+            loginWindow.focus();
+          }
+        } catch {}
+      }, 50);
+    }
   });
 
   // Preveu quan l'usuari tanqui la finestra de login
@@ -295,6 +327,9 @@ function createDisplayWindow() {
     } catch {}
     isDisplayOpen = true;
     logger.debug("Display obert");
+
+    // Assegura que el focus keeper està actiu
+    startFocusKeeper();
 
     // Registra els shortcuts només quan el display està obert
     registerDisplayShortcuts();
@@ -655,6 +690,65 @@ function unregisterDisplayShortcuts() {
   }
 }
 
+// ========================================
+// FOCUS KEEPER: Assegura que les finestres de login i display
+// es mantinguin sempre al front i visibles a tots els workspaces
+// ========================================
+let focusKeeperInterval = null;
+
+function startFocusKeeper() {
+  if (focusKeeperInterval) return;
+  focusKeeperInterval = setInterval(() => {
+    // Login window: sempre al front mentre no s'hagi fet login
+    if (loginWindow && !isLoggedIn) {
+      try {
+        if (loginWindow.isMinimized()) {
+          loginWindow.restore();
+        }
+        if (!loginWindow.isFocused()) {
+          loginWindow.show();
+          loginWindow.focus();
+        }
+        // Reforça sticky i alwaysOnTop periòdicament
+        loginWindow.setVisibleOnAllWorkspaces(true, {
+          visibleOnFullScreen: true,
+        });
+        loginWindow.setAlwaysOnTop(true, "screen-saver");
+      } catch {}
+    }
+
+    // Display window: sempre al front mentre estigui obert
+    if (displayWindow && isDisplayOpen) {
+      try {
+        if (displayWindow.isMinimized()) {
+          displayWindow.restore();
+        }
+        if (!displayWindow.isFocused()) {
+          displayWindow.show();
+          displayWindow.focus();
+        }
+        // Reforça sticky, alwaysOnTop i fullscreen periòdicament
+        displayWindow.setVisibleOnAllWorkspaces(true, {
+          visibleOnFullScreen: true,
+        });
+        displayWindow.setAlwaysOnTop(true, "screen-saver");
+        if (!displayWindow.isFullScreen()) {
+          displayWindow.setFullScreen(true);
+        }
+      } catch {}
+    }
+  }, 500);
+  logger.debug("Focus keeper iniciat");
+}
+
+function stopFocusKeeper() {
+  if (focusKeeperInterval) {
+    clearInterval(focusKeeperInterval);
+    focusKeeperInterval = null;
+    logger.debug("Focus keeper aturat");
+  }
+}
+
 // Events de l'aplicació
 app.whenReady().then(() => {
   logger.info(`PalamOS Dashboard v${app.getVersion()}`);
@@ -666,6 +760,7 @@ app.whenReady().then(() => {
     if (isExamUserName(username)) {
       logger.info("Usuari examen detectat. Obrint directament login2:", username);
       createLoginWindow({ examOnly: true, baseUser: username });
+      startFocusKeeper();
     } else {
       logger.info("Usuari ja logat:", username);
       isLoggedIn = true;
@@ -678,6 +773,7 @@ app.whenReady().then(() => {
   } else {
     logger.info("No hi ha usuari logat, mostrant login...");
     createLoginWindow({ examOnly: false, baseUser: "" });
+    startFocusKeeper();
   }
 
   // Registra shortcuts globals per a prevenir sortides (Linux) - sempre actius
