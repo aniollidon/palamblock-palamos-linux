@@ -9,7 +9,7 @@ Aquest repositori conté les peces claus per al setup d'un ordinador preparat pe
 + Palam-dash: Aplicació electron que gestiona la vista (login, emisions) i estat de la màquina remota.
 
 ## Setup-OS
-Modificacions a un sistema operatiu amb base debian per garantir el funcionament de la màquina alumne. e
+Modificacions a un sistema operatiu amb base debian per garantir el funcionament de la màquina alumne. Es contemplen dues versions, versió FPB (màquina per usuari. )
 
 Segueix les [instruccions d'instal·lació](setup-OS/setup.md) dels diferents components.
 
