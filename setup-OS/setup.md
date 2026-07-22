@@ -87,7 +87,30 @@ gsettings set org.gnome.desktop.screensaver lock-enabled false
 + S'instal·la mongodb-compass (plantilla examen)
 + visor Spice (plantilla examen)
 
+Finalment queden aquestes aplicacions:
+| Icona/Carpeta | Aplicacions |
+|---|---|
+| Terminal | `org.gnome.Terminal.desktop` |
+| VS Code | `code_code.desktop` |
+| MySQL Workbench | `mysql-workbench-community_mysql-workbench-community.desktop` |
+| Remote Viewer | `remote-viewer.desktop` |
+| MongoDB Compass | `mongodb-compass.desktop` |
+| Eclipse | `eclipse_eclipse.desktop` |
+| Text Editor | `org.gnome.TextEditor.desktop` |
+| 📁 **Ofimàtica** | LibreOffice Calc, Draw, Impress, Writer, Startcenter |
+| 📁 **Imatge i vídeo** | Music, Loupe, Sound Recorder, Totem, Simple Scan |
+| 📁 **Utilities** | Evince, File Roller, Font Viewer, Connections, Seahorse, Characters, Help |
+| 📁 **System** | Network, System Monitor, Disk Utility, Baobab, Logs, Malcontent, Tweaks, Software, Extension Manager, x11vnc |
 
+**Dash (barra lateral):** Nautilus, Brave, Calculadora
+
+**Extensions GNOME:** Dash to Dock (posició inferior)
+
+> ⚠️ Aquesta organització es configura manualment amb `gsettings` o `dconf`
+> des de la sessió de l'usuari `alumne`. No hi ha un script automàtic.
+
+
+**Instal·lació:**
 ```bash
 sudo apt update
 sudo apt install snapd

@@ -3,7 +3,14 @@ set -euo pipefail
 
 APP="/data/palamos-dashboard/bin/palam-dash.AppImage"
 DATA_DIR="/data/palamos-dashboard/data"
-DISPLAY_VAL=":1"
+# Auto-detecció del display X de l'usuari
+DISPLAY_VAL=":0"
+for sock in /tmp/.X11-unix/X*; do
+    if [ -S "$sock" ] && [ -O "$sock" ]; then
+        DISPLAY_VAL=":${sock##*X}"
+        break
+    fi
+done
 WAIT_SECS=5
 
 log(){ echo "[run.sh] $*"; }
