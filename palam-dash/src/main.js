@@ -42,6 +42,7 @@ let selectedServerUrl = DEFAULT_SERVER_URL;
 let currentLoginContext = { examOnly: false, baseUser: "" };
 let examSessionTimer = null;
 let loginBlurHandler = null;
+let authWindow = null;
 const examSession = {
   active: false,
   user: null,
@@ -702,6 +703,23 @@ let focusKeeperInterval = null;
 function startFocusKeeper() {
   if (focusKeeperInterval) return;
   focusKeeperInterval = setInterval(() => {
+    // Finestra d'OAuth de Google: si està oberta, forcem el focus aquí
+    // perquè l'usuari pugui interactuar-hi sense interferències
+    if (authWindow && !authWindow.isDestroyed()) {
+      try {
+        if (authWindow.isMinimized()) {
+          authWindow.restore();
+        }
+        if (!authWindow.isFocused()) {
+          authWindow.show();
+          authWindow.focus();
+        }
+        authWindow.setAlwaysOnTop(true, "screen-saver");
+      } catch {}
+      // Mentre l'OAuth està obert, no forcim el focus a loginWindow
+      return;
+    }
+
     // Login window: sempre al front mentre no s'hagi fet login
     if (loginWindow && !isLoggedIn) {
       try {
@@ -995,25 +1013,22 @@ ipcMain.handle("start-google-auth", async () => {
     // S'afegeix el paràmetre hd=inspalamos.cat per indicar a Google el domini de treball predeterminat dels alumnes
     const authUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${googleClientId}&redirect_uri=http://localhost&response_type=code&scope=email%20profile&hd=inspalamos.cat`;
 
-    // Desactiva temporalment el focus-keeper de la finestra de login
-    // per permetre a l'usuari interactuar amb la finestra d'OAuth de Google
-    if (loginWindow) {
-      if (loginBlurHandler) {
-        loginWindow.removeListener("blur", loginBlurHandler);
-      }
-      loginWindow.setAlwaysOnTop(false);
+    // Desactiva temporalment el blur handler de la finestra de login
+    // per evitar que robi el focus a la finestra d'OAuth de Google.
+    // El focusKeeper s'encarregarà de mantenir el focus a authWindow.
+    if (loginWindow && loginBlurHandler) {
+      loginWindow.removeListener("blur", loginBlurHandler);
     }
 
-    const restoreLoginFocusKeeper = () => {
+    const restoreLoginBlurHandler = () => {
       if (loginWindow && !isLoggedIn && loginBlurHandler) {
-        loginWindow.setAlwaysOnTop(true, "screen-saver");
         // Evita duplicar el listener si ja hi és
         loginWindow.removeListener("blur", loginBlurHandler);
         loginWindow.on("blur", loginBlurHandler);
       }
     };
 
-    const authWindow = new BrowserWindow({
+    authWindow = new BrowserWindow({
       width: 500,
       height: 650,
       icon: APP_ICON,
@@ -1041,6 +1056,11 @@ ipcMain.handle("start-google-auth", async () => {
 
     let resolved = false;
 
+    const cleanupAuth = () => {
+      restoreLoginBlurHandler();
+      authWindow = null;
+    };
+
     const handleNavigation = (url) => {
       if (url.startsWith("http://localhost")) {
         resolved = true;
@@ -1048,8 +1068,6 @@ ipcMain.handle("start-google-auth", async () => {
           const urlObj = new URL(url);
           const code = urlObj.searchParams.get("code");
           const error = urlObj.searchParams.get("error");
-
-          restoreLoginFocusKeeper();
 
           if (code) {
             resolve({ ok: true, code });
@@ -1060,6 +1078,7 @@ ipcMain.handle("start-google-auth", async () => {
           resolve({ ok: false, error: "Error de redirecció des de l'autenticació de Google." });
         }
         authWindow.close();
+        cleanupAuth();
       }
     };
 
@@ -1072,10 +1091,10 @@ ipcMain.handle("start-google-auth", async () => {
     });
 
     authWindow.on("close", () => {
-      restoreLoginFocusKeeper();
       if (!resolved) {
         resolve({ ok: false, error: "Finestra de login de Google tancada per l'usuari." });
       }
+      cleanupAuth();
     });
   });
 });
