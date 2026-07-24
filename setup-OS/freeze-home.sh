@@ -86,7 +86,6 @@ Description=Overlay efímer de /home (PalamOS plantilla Examen)
 DefaultDependencies=no
 After=local-fs.target
 Before=display-manager.service
-Conflicts=umount.target
 Before=umount.target
 
 [Service]
