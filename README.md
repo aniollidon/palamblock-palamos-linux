@@ -25,7 +25,7 @@ Segueix les [instruccions d'instal·lació](setup-OS/setup.md) dels diferents co
 
 | Àrea | Plantilla FPB | Plantilla Examen |
 |---|---|---|
-| **Particions** | `/boot/efi`, `/` (30G), `/home` (150G, `noexec,nosuid,nodev`), `/var` (12G), `/data` (50G), `swap` (4G) |  Igual, congelat `/` i `/home` |
+| **Particions** | `/boot/efi`, `/` (30G), `/home` (150G, `noexec,nosuid,nodev`), `/var` (12G), `/data` (50G), `swap` (4G) |  Igual; congelat `/home` (overlay tmpfs) i `/tmp` (tmpfs). `/` persistent per a manteniment remot |
 | **Usuaris** | `super` (sudo) + `alumne` (amb contrasenya, sense sudo) | `super` (sudo) + `alumne` (sense contrasenya, sense sudo) |
 | **Login** | Manual | Autologin amb `alumne` |
 | **Display** | X11 forçat | X11 forçat |

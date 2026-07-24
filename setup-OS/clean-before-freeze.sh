@@ -141,4 +141,4 @@ log_info "Restablint propietaris de les dades de '$TARGET_USER'..."
 chown -R "$TARGET_USER:$USER_GROUP" "$USER_HOME/.cache" "$USER_HOME/.local" 2>/dev/null || true
 
 echo ""
-echo "Neteja acabada. Reinicia, comprova la plantilla i apaga-la abans de congelar."
+echo "Neteja acabada. Comprova la plantilla i executa freeze-home.sh per congelar-la (s'aplica en reiniciar)."

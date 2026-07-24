@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# AQUEST SCRIPT ESTÀ DEPRECAT. L'ACTUALIZACIÓ ÉS AUTOMÀTICA AMB AppUpdater d'electron,
+
 cd /home/super/palamblock-palamos-linux
 git checkout .
 git pull

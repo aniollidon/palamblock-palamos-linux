@@ -24,8 +24,8 @@ Primerament fem l'instal·lació debian amb GNOME, setup en català...
 | # | Punt de muntatge | Mida   | Sistema de fitxers | Opcions               | Notes                          |
 | - | ---------------- | ------ | ------------------ | --------------------- | ------------------------------ |
 | 1 | `/boot/efi`      | 512 MB | FAT32              | default               | EFI System Partition (UEFI) |
-| 2 | `/`              | 30 GB  | ext4               | default               | sistema (es congelarà p.examen)      |
-| 3 | `/home`          | 150 GB | ext4               | `noexec,nosuid,nodev` | usuaris (es congelarà p.examen)      |
+| 2 | `/`              | 30 GB  | ext4               | default               | sistema (**no** es congela: manteniment remot)      |
+| 3 | `/home`          | 150 GB | ext4               | `noexec,nosuid,nodev` | usuaris (es congela p.examen: overlay tmpfs)      |
 | 4 | `/var`           | 12 GB  | ext4               | default               | persistent sistema          |
 | 5 | `/data`          | 50 GB  | ext4               | `nosuid,nodev`        | dades reals                 |
 | 6 | swap             | 4 GB   | swap               | -                     | RAM extra                      |
@@ -300,7 +300,7 @@ sudo apt install make
 sudo make install user=alumne display=:0
 ```
 
-## Neteja abans de congelar la plantilla Examen
+## Scripts de neteja abans de congelar la plantilla Examen
 
 Quan la plantilla ja estigui configurada i comprovada, executa l'script de neteja abans d'apagar-la per congelar-la:
 
@@ -315,3 +315,91 @@ Per netejar un usuari diferent:
 ```bash
 wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/clean-before-freeze.sh -O /tmp/clean-before-freeze.sh && sudo bash /tmp/clean-before-freeze.sh --user USUARI
 ```
+
+# Congelació de la plantilla Examen (`/home` efímer)
+
+La plantilla Examen es congela perquè **cada arrencada trobi els escriptoris nets**,
+però sense bloquejar el sistema. Concretament:
+
+| Element | Estat | Mecanisme |
+|---|---|---|
+| `/home` (perfils d'`alumne` i `super`) | **Congelat** (efímer) | Overlay: la partició real es munta en **només lectura** a `/mnt/home-lower` i la capa d'escriptura és un **tmpfs** (RAM). Totes les escriptures s'esvaeixen en apagar |
+| `/tmp` | **Efímer** | tmpfs (`tmp.mount` de systemd) |
+| `/` (sistema, polítiques, VNC) | **Persistent** | L'`alumne` no té sudo: ja està protegit pels permisos. Mantenir-lo persistent permet actualitzar polítiques i serveis per SSH sense descongelar |
+| `/var` (logs, snapd) | **Persistent** | — |
+| `/data` (palam-dash, dades persistents) | **Persistent** | — |
+
+> **Per què no congelem `/`?** L'objectiu real és tenir l'escriptori net a cada sessió,
+> i això és `/home`. Congelar `/` complicaria molt el manteniment (cada canvi de
+> polítiques implicaria descongelar → canviar → netejar → recongelar) i exigiria una
+> entrada de GRUB de manteniment per no quedar-nos sense accés. Si en el futur es vol
+> anar més enllà, es farà com a fase posterior, mai a la vegada que `/home`.
+
+## Requisits previs
+
+1. Plantilla configurada i comprovada (polítiques, restriccions, VNC, palam-dash...).
+2. La sessió de l'`alumne` en l'estat desitjat (fons, dash, extensions...).
+3. Haure executat `clean-before-freeze.sh` (secció anterior).
+
+## Aplicar la congelació
+
+```bash
+wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/freeze-home.sh -O /tmp/freeze-home.sh && sudo bash /tmp/freeze-home.sh
+```
+
+L'script:
+1. Desa una còpia de `/etc/fstab` a `/etc/fstab.pre-freeze` (només la primera vegada).
+2. Comenta l'entrada de `/home` a l'`fstab`.
+3. Crea i activa el servei `home-overlay.service`, que a cada arrencada (abans de `local-fs.target`):
+   - munta la partició real de `/home` en **només lectura** a `/mnt/home-lower`,
+   - crea una capa d'escriptura **tmpfs** (RAM, màxim 50%) a `/run/palam-home`,
+   - munta `/home` com a **overlay** de les dues capes.
+4. Activa `tmp.mount` perquè `/tmp` sigui un tmpfs.
+
+La congelació **s'aplica en reiniciar**: `sudo reboot`.
+
+## Verificació (després de reiniciar)
+
+```bash
+findmnt /home            # tipus "overlay"
+findmnt /mnt/home-lower  # opcions amb "ro" (només lectura)
+findmnt /tmp             # tipus "tmpfs"
+findmnt /                # "rw": el sistema NO està congelat
+
+# Prova de foc: un fitxer creat a /home desapareix en reiniciar
+sudo -u alumne touch /home/alumne/prova-congelacio
+sudo reboot
+ls /home/alumne/prova-congelacio   # ha de dir que no existeix
+```
+
+Comprova també que:
+- L'autologin entra a la sessió de l'`alumne` sense diàlegs (keyring, contrasenyes...).
+- Brave s'obre i rep les credencials del pont local de palam-dash (`localhost:9876`).
+- Els serveis `x11vnc.service`, `novnc-proxy.service` i `palamos-dashboard.service` estan actius.
+
+## Descongelar (mode manteniment)
+
+Per fer canvis persistents als perfils o al sistema:
+
+```bash
+wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/unfreeze-home.sh -O /tmp/unfreeze-home.sh && sudo bash /tmp/unfreeze-home.sh
+sudo reboot
+```
+
+L'script desactiva `home-overlay.service` i `tmp.mount`, i restaura l'`fstab` original
+(`/etc/fstab.pre-freeze`). En acabar el manteniment, torna a executar
+`clean-before-freeze.sh` + `freeze-home.sh` i reinicia.
+
+## Notes de funcionament
+
+- **L'home de `super` també és efímer.** Les claus SSH (`authorized_keys`) continuen
+  funcionant perquè es llegeixen de la capa de només lectura, però qualsevol fitxer
+  de l'administrador que hagi de persistir ha de viure a `/data` (p. ex. `/data/admin`).
+- Les escriptures de l'`alumne` van a RAM (tmpfs limitat al 50% de la memòria). Si algun
+  examen necessita espai persistent, s'ha d'habilitar una carpeta a `/data`.
+- La partició real de `/home` ja no passa el fsck a cada arrencada. En mode manteniment
+  es pot executar `sudo e2fsck -p` sobre el dispositiu si cal.
+- palam-dash recrea a cada arrencada el symlink `~/.config/palam-dash -> /data/...`,
+  així que les seves dades (`.user`, `.server`, logs) sobreviuen a la congelació.
+- El navegador de l'`alumne` arrenca sempre amb perfil net; l'extensió obté les
+  credencials del pont `localhost:9876` que serveix palam-dash.
