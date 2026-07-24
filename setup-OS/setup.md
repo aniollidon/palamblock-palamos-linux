@@ -324,7 +324,7 @@ però sense bloquejar el sistema. Concretament:
 | Element | Estat | Mecanisme |
 |---|---|---|
 | `/home` (perfils d'`alumne` i `super`) | **Congelat** (efímer) | Overlay: la partició real es munta en **només lectura** a `/mnt/home-lower` i la capa d'escriptura és un **tmpfs** (RAM). Totes les escriptures s'esvaeixen en apagar |
-| `/tmp` | **Efímer** | tmpfs (`tmp.mount` de systemd) |
+| `/tmp` | **Efímer** | tmpfs. A Debian 13 ja ho és de sèrie: no cal configurar res |
 | `/` (sistema, polítiques, VNC) | **Persistent** | L'`alumne` no té sudo: ja està protegit pels permisos. Mantenir-lo persistent permet actualitzar polítiques i serveis per SSH sense descongelar |
 | `/var` (logs, snapd) | **Persistent** | — |
 | `/data` (palam-dash, dades persistents) | **Persistent** | — |
@@ -350,11 +350,13 @@ wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/re
 L'script:
 1. Desa una còpia de `/etc/fstab` a `/etc/fstab.pre-freeze` (només la primera vegada).
 2. Comenta l'entrada de `/home` a l'`fstab`.
-3. Crea i activa el servei `home-overlay.service`, que a cada arrencada (abans de `local-fs.target`):
+3. Crea i activa el servei `home-overlay.service`, que a cada arrencada
+   (després de `local-fs.target`, amb el disc ja muntat, i abans del `display-manager`/GDM):
    - munta la partició real de `/home` en **només lectura** a `/mnt/home-lower`,
    - crea una capa d'escriptura **tmpfs** (RAM, màxim 50%) a `/run/palam-home`,
    - munta `/home` com a **overlay** de les dues capes.
-4. Activa `tmp.mount` perquè `/tmp` sigui un tmpfs.
+
+> `/tmp` no es toca: a Debian 13 ja és un tmpfs de sèrie.
 
 La congelació **s'aplica en reiniciar**: `sudo reboot`.
 

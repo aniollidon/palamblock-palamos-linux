@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# freeze-home.sh — Congela /home (overlay efímer sobre tmpfs) i /tmp (tmpfs)
+# freeze-home.sh — Congela /home (overlay efímer sobre tmpfs)
 # per a la plantilla Examen de PalamOS.
 #
 # El sistema (/) NO es congela: es manté persistent per permetre el
 # manteniment remot (polítiques, serveis VNC, palam-dash...).
+# /tmp ja és un tmpfs de sèrie a Debian 13: no cal tocar-lo.
 #
 # Ús:
 #   sudo bash freeze-home.sh
@@ -12,7 +13,7 @@
 #   1. Desa /etc/fstab a /etc/fstab.pre-freeze (només la primera vegada)
 #   2. Comenta l'entrada de /home a l'fstab
 #   3. Crea i activa /etc/systemd/system/home-overlay.service
-#   4. Activa tmpfs per a /tmp (tmp.mount)
+#      (s'executa després de local-fs.target i abans del display-manager)
 #
 # La congelació s'aplica en reiniciar. Per desfer-la: unfreeze-home.sh
 
@@ -79,11 +80,14 @@ lower_opts="${home_opts:+$home_opts,}ro"
 
 cat > "$UNIT" <<EOF
 [Unit]
+# S'executa DESPRÉS de local-fs.target (disc ja muntat + fsck fet) i
+# ABANS del display-manager (GDM), perquè /home estigui a punt abans de la sessió.
 Description=Overlay efímer de /home (PalamOS plantilla Examen)
 DefaultDependencies=no
-After=local-fs-pre.target
-Before=local-fs.target umount.target
+After=local-fs.target
+Before=display-manager.service
 Conflicts=umount.target
+Before=umount.target
 
 [Service]
 Type=oneshot
@@ -98,24 +102,13 @@ ExecStop=/usr/bin/umount $LOWER_DIR
 ExecStop=/usr/bin/umount $RUN_DIR
 
 [Install]
-WantedBy=local-fs.target
+WantedBy=multi-user.target
 EOF
 
 log "Servei creat: $UNIT"
 
 # ---------------------------------------------------------------------------
-# 4. /tmp com a tmpfs
-# ---------------------------------------------------------------------------
-if [[ -f /usr/share/systemd/tmp.mount ]]; then
-    cp /usr/share/systemd/tmp.mount /etc/systemd/system/tmp.mount
-    systemctl enable tmp.mount
-    log "/tmp quedarà com a tmpfs (tmp.mount activat)."
-else
-    log "Avís: no s'ha trobat /usr/share/systemd/tmp.mount; /tmp no es toca."
-fi
-
-# ---------------------------------------------------------------------------
-# 5. Activació
+# 4. Activació
 # ---------------------------------------------------------------------------
 systemctl daemon-reload
 systemctl enable home-overlay.service

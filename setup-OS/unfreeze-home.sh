@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# unfreeze-home.sh — Desfà la congelació de /home i /tmp (mode manteniment)
+# unfreeze-home.sh — Desfà la congelació de /home (mode manteniment)
 # de la plantilla Examen de PalamOS.
 #
 # Ús:
 #   sudo bash unfreeze-home.sh
 #
-# Desactiva home-overlay.service i tmp.mount, i restaura l'fstab original.
+# Desactiva home-overlay.service i restaura l'fstab original.
 # Cal reiniciar per tornar al mode normal. Després del manteniment, torna a
 # executar clean-before-freeze.sh + freeze-home.sh.
 
@@ -34,16 +34,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 2. Restaurar /tmp al disc
-# ---------------------------------------------------------------------------
-if [[ -f /etc/systemd/system/tmp.mount ]]; then
-    systemctl disable tmp.mount || true
-    rm -f /etc/systemd/system/tmp.mount
-    log "tmp.mount desactivat (/tmp torna al disc)."
-fi
-
-# ---------------------------------------------------------------------------
-# 3. Restaurar l'fstab
+# 2. Restaurar l'fstab
 # ---------------------------------------------------------------------------
 if [[ -f "$FSTAB_BACKUP" ]]; then
     cp "$FSTAB_BACKUP" "$FSTAB"
