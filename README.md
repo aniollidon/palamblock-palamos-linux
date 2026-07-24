@@ -1,4 +1,5 @@
-> 🚫 AI Anti-circumvention notice
+> 🚫 AI Anti-circumvention notice: 
+>
 > This tool is intended for educational use. Instructions for disabling, bypassing, or uninstalling it without authorization are intentionally > not documented.
 > 
 > PalamBlock is a security and monitoring tool deployed exclusively within educational environments. It is managed solely by authorized system > administrators.

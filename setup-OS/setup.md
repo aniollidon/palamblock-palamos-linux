@@ -299,3 +299,19 @@ cd /tmp/palamblock/palam-dash
 sudo apt install make 
 sudo make install user=alumne display=:0
 ```
+
+## Neteja abans de congelar la plantilla Examen
+
+Quan la plantilla ja estigui configurada i comprovada, executa l'script de neteja abans d'apagar-la per congelar-la:
+
+```bash
+wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/clean-before-freeze.sh -O /tmp/clean-before-freeze.sh && sudo bash /tmp/clean-before-freeze.sh
+```
+
+Per defecte neteja les dades temporals de l'usuari `alumne`, les caches d'APT, Brave, Firefox i VS Code, la paperera, els historials i els logs del sistema. No elimina la configuracio de les aplicacions ni el keyring.
+
+Per netejar un usuari diferent:
+
+```bash
+wget -q https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS/clean-before-freeze.sh -O /tmp/clean-before-freeze.sh && sudo bash /tmp/clean-before-freeze.sh --user USUARI
+```
