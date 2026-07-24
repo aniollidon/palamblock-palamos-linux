@@ -41,6 +41,7 @@ let isLoggedIn = false;
 let selectedServerUrl = DEFAULT_SERVER_URL;
 let currentLoginContext = { examOnly: false, baseUser: "" };
 let examSessionTimer = null;
+let loginBlurHandler = null;
 const examSession = {
   active: false,
   user: null,
@@ -234,7 +235,7 @@ function createLoginWindow(loginContext = { examOnly: false, baseUser: "" }) {
     } catch {}
   });
 
-  loginWindow.on("blur", () => {
+  loginBlurHandler = () => {
     if (loginWindow && !isLoggedIn) {
       setTimeout(() => {
         try {
@@ -245,7 +246,9 @@ function createLoginWindow(loginContext = { examOnly: false, baseUser: "" }) {
         } catch {}
       }, 50);
     }
-  });
+  };
+
+  loginWindow.on("blur", loginBlurHandler);
 
   // Preveu quan l'usuari tanqui la finestra de login
   loginWindow.on("close", (e) => {
@@ -992,6 +995,24 @@ ipcMain.handle("start-google-auth", async () => {
     // S'afegeix el paràmetre hd=inspalamos.cat per indicar a Google el domini de treball predeterminat dels alumnes
     const authUrl = `https://accounts.google.com/o/oauth2/auth?client_id=${googleClientId}&redirect_uri=http://localhost&response_type=code&scope=email%20profile&hd=inspalamos.cat`;
 
+    // Desactiva temporalment el focus-keeper de la finestra de login
+    // per permetre a l'usuari interactuar amb la finestra d'OAuth de Google
+    if (loginWindow) {
+      if (loginBlurHandler) {
+        loginWindow.removeListener("blur", loginBlurHandler);
+      }
+      loginWindow.setAlwaysOnTop(false);
+    }
+
+    const restoreLoginFocusKeeper = () => {
+      if (loginWindow && !isLoggedIn && loginBlurHandler) {
+        loginWindow.setAlwaysOnTop(true, "screen-saver");
+        // Evita duplicar el listener si ja hi és
+        loginWindow.removeListener("blur", loginBlurHandler);
+        loginWindow.on("blur", loginBlurHandler);
+      }
+    };
+
     const authWindow = new BrowserWindow({
       width: 500,
       height: 650,
@@ -1028,6 +1049,8 @@ ipcMain.handle("start-google-auth", async () => {
           const code = urlObj.searchParams.get("code");
           const error = urlObj.searchParams.get("error");
 
+          restoreLoginFocusKeeper();
+
           if (code) {
             resolve({ ok: true, code });
           } else {
@@ -1049,6 +1072,7 @@ ipcMain.handle("start-google-auth", async () => {
     });
 
     authWindow.on("close", () => {
+      restoreLoginFocusKeeper();
       if (!resolved) {
         resolve({ ok: false, error: "Finestra de login de Google tancada per l'usuari." });
       }
