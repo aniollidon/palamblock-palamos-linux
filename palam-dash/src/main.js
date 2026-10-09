@@ -22,7 +22,7 @@ require("dotenv").config();
 const DEFAULT_SERVER_URL =
   process.env.SERVER_PALAMBLOCK || "http://192.168.0.103:4000";
 const SECONDARY_SERVER_URL =
-  process.env.SERVER_PALAMBLOCK_ALT || "https://palamblock.online";
+  process.env.SERVER_PALAMBLOCK_ALT || "https://palamblock.inspalamos.cat";
 
 // Configuració del logger per l'autoUpdater
 log.transports.file.level = "info";
@@ -39,6 +39,7 @@ let isDisplayOpen = false;
 let allowCloseDisplay = false;
 let isLoggedIn = false;
 let selectedServerUrl = DEFAULT_SERVER_URL;
+let selectedSecondaryServerUrl = SECONDARY_SERVER_URL;
 let currentLoginContext = { examOnly: false, baseUser: "" };
 let examSessionTimer = null;
 let loginBlurHandler = null;
@@ -74,6 +75,10 @@ function getServerPrefFile() {
   return path.join(app.getPath("userData"), ".server");
 }
 
+function getSecondaryServerPrefFile() {
+  return path.join(app.getPath("userData"), ".server2");
+}
+
 function loadServerPreference() {
   try {
     const fromFile = fs.readFileSync(getServerPrefFile(), "utf8").trim();
@@ -81,12 +86,33 @@ function loadServerPreference() {
   } catch (_err) {
     selectedServerUrl = normalizeServerUrl(DEFAULT_SERVER_URL);
   }
+
+  try {
+    const fromFile = fs.readFileSync(getSecondaryServerPrefFile(), "utf8").trim();
+    if (fromFile) selectedSecondaryServerUrl = normalizeServerUrl(fromFile);
+  } catch (_err) {
+    selectedSecondaryServerUrl = normalizeServerUrl(SECONDARY_SERVER_URL);
+  }
 }
 
 function saveServerPreference(url) {
   selectedServerUrl = normalizeServerUrl(url);
   fs.writeFileSync(getServerPrefFile(), selectedServerUrl, "utf8");
   return selectedServerUrl;
+}
+
+function saveSecondaryServerPreference(url) {
+  const value = String(url || "").trim();
+  if (!value) throw new Error("Cal especificar el servidor secundari");
+
+  const normalizedUrl = normalizeServerUrl(value);
+  fs.writeFileSync(
+    getSecondaryServerPrefFile(),
+    normalizedUrl,
+    "utf8"
+  );
+  selectedSecondaryServerUrl = normalizedUrl;
+  return selectedSecondaryServerUrl;
 }
 
 function isExamBaseUser() {
@@ -789,7 +815,7 @@ app.whenReady().then(() => {
       connectToServer();
       // Inicia el pont local
       const bridgePort = parseInt(process.env.BRIDGE_PORT, 10) || 9876;
-      startBridgeServer(selectedServerUrl, username, bridgePort, SECONDARY_SERVER_URL);
+      startBridgeServer(selectedServerUrl, username, bridgePort, selectedSecondaryServerUrl);
     }
   } else {
     logger.info("No hi ha usuari logat, mostrant login...");
@@ -951,8 +977,9 @@ ipcMain.handle("get-server-url", () => {
 ipcMain.handle("get-server-options", () => {
   return {
     primary: normalizeServerUrl(DEFAULT_SERVER_URL),
-    secondary: normalizeServerUrl(SECONDARY_SERVER_URL),
+    secondary: normalizeServerUrl(selectedSecondaryServerUrl),
     selected: normalizeServerUrl(selectedServerUrl),
+    selectedSecondary: normalizeServerUrl(selectedSecondaryServerUrl),
   };
 });
 
@@ -963,6 +990,17 @@ ipcMain.handle("set-server-url", (_event, serverUrl) => {
     return { ok: true, serverUrl: saved };
   } catch (error) {
     logger.error("Error guardant servidor:", error);
+    return { ok: false, error: error.message };
+  }
+});
+
+ipcMain.handle("set-secondary-server-url", (_event, serverUrl) => {
+  try {
+    const saved = saveSecondaryServerPreference(serverUrl);
+    logger.info("Servidor secundari seleccionat:", saved);
+    return { ok: true, serverUrl: saved };
+  } catch (error) {
+    logger.error("Error guardant servidor secundari:", error);
     return { ok: false, error: error.message };
   }
 });
@@ -1117,7 +1155,7 @@ ipcMain.handle("login-completed", () => {
 
   // Inicia el pont local per a l'extensió del navegador
   const bridgePort = parseInt(process.env.BRIDGE_PORT, 10) || 9876;
-  startBridgeServer(selectedServerUrl, username, bridgePort, SECONDARY_SERVER_URL);
+  startBridgeServer(selectedServerUrl, username, bridgePort, selectedSecondaryServerUrl);
 
   return { success: true };
 });

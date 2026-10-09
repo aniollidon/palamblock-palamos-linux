@@ -16,7 +16,7 @@
         .top:after { transform: rotate(135deg); background: #FFB400; }
         .bottom:before { transform: rotate(-45deg); background: #00A6ED; }
         .bottom:after { transform: rotate(-135deg); background: #7FB800; }
-        .center { position: absolute; width: 420px; min-height: 420px; top: 50%; left: 50%; margin-left: -210px; margin-top: -210px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; opacity: 1; color: #333; background: rgba(255, 255, 255, 0.9); border-radius: 10px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); }
+        .center { position: absolute; width: min(420px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow-y: auto; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 30px; opacity: 1; color: #333; background: rgba(255, 255, 255, 0.9); border-radius: 10px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1); }
         .center h2 { margin: 0 0 20px 0; color: #333; text-align: center; }
         .center input { width: 100%; padding: 15px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; font-family: inherit; font-size: 16px; }
         .center select { width: 100%; padding: 15px; margin: 5px 0; border-radius: 5px; border: 1px solid #ccc; font-family: inherit; font-size: 16px; }
@@ -163,6 +163,7 @@
             <div id="authSubtitle" class="auth-subtitle">Registre persistent del dispositiu amb l'usuari base de PalamBlock.</div>
             <input type="text" placeholder="Servidor (ex: http://localhost:3000)" id="serverUrl" list="serverUrlOptions" />
             <datalist id="serverUrlOptions"></datalist>
+            <input type="text" placeholder="Servidor secundari" id="secondaryServerUrl" list="serverUrlOptions" />
             <input type="text" placeholder="Nom d'usuari" id="username" />
             <input type="password" placeholder="Contrasenya" id="password" />
             <input type="submit" value="Registra" id="save" />
@@ -218,6 +219,7 @@
             document.getElementById('authTitle').textContent = 'Identificació temporal d\'examen';
             document.getElementById('authSubtitle').textContent = 'Aquest ordinador està protegit amb PalamBlock. En accedir, es crearà una sessió d\'examen, on es monitorarà la teva activitat.';
             document.getElementById('serverUrl').style.display = 'none'; // Amaga l'input de l'IP del servidor
+            document.getElementById('secondaryServerUrl').style.display = 'none';
             document.getElementById('username').style.display = 'none';
             document.getElementById('password').style.display = 'none';
             document.getElementById('save').style.display = 'none';
@@ -247,7 +249,9 @@
                 datalist.appendChild(option);
             }
 
-            input.value = options?.selected || options?.primary || 'https://palamblock.online';
+            input.value = options?.selected || options?.primary || 'https://palamblock.inspalamos.cat';
+            document.getElementById('secondaryServerUrl').value =
+                options?.selectedSecondary || options?.secondary || '';
         }
 
         async function loadLoginContext() {
@@ -314,9 +318,10 @@
             const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value.trim();
             const serverUrl = normalizeServerUrl(document.getElementById('serverUrl').value);
+            const secondaryServerUrl = normalizeServerUrl(document.getElementById('secondaryServerUrl').value);
 
-            if (serverUrl === '' || username === '' || password === '') {
-                showError("Cal especificar servidor, usuari i contrasenya");
+            if (serverUrl === '' || secondaryServerUrl === '' || username === '' || password === '') {
+                showError("Cal especificar servidor principal, servidor secundari, usuari i contrasenya");
                 return;
             }
 
@@ -325,6 +330,12 @@
                 const serverSaved = await ipcRenderer.invoke('set-server-url', serverUrl);
                 if (!serverSaved || !serverSaved.ok) {
                     showError("No s'ha pogut guardar el servidor seleccionat");
+                    return;
+                }
+
+                const secondaryServerSaved = await ipcRenderer.invoke('set-secondary-server-url', secondaryServerUrl);
+                if (!secondaryServerSaved || !secondaryServerSaved.ok) {
+                    showError("No s'ha pogut guardar el servidor secundari");
                     return;
                 }
 

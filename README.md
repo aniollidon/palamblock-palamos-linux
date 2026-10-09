@@ -47,6 +47,11 @@ Aplicació Electron que funciona com a servei (unitat d'usuari systemd) per a Pa
 1. Copia `env.example` a `.env`
 2. Configura les variables d'entorn:
 
+Els servidors principal i secundari també es poden editar al login de palam-dash.
+La selecció es desa persistentment als fitxers `.server` i `.server2`,
+respectivament, dins de `/data/palamos-dashboard/data`. Si encara no existeix
+`.server2`, s'utilitza `SERVER_PALAMBLOCK_ALT` de la configuració d'entorn.
+
 #### Configuració del fitxer sudoers
 
 L'script d'instal·lació crea automàticament `/etc/sudoers.d/palamos-dashboard` amb:
