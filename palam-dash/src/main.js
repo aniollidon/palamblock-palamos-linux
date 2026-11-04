@@ -548,6 +548,9 @@ function checkIPChanges() {
 }
 
 function connectToServer() {
+  // Evita sockets duplicats (l'usuari examen es connecta a l'arrencada i de nou en acabar el login)
+  if (socket) return;
+
   const serverUrl = getSocketBaseFromServerUrl(selectedServerUrl);
 
   socket = io.connect(serverUrl, {
@@ -808,6 +811,8 @@ app.whenReady().then(() => {
       logger.info("Usuari examen detectat. Obrint directament login2:", username);
       createLoginWindow({ examOnly: true, baseUser: username });
       startFocusKeeper();
+      // Es registra al servidor abans del login temporal perque la maquina sigui visible
+      connectToServer();
     } else {
       logger.info("Usuari ja logat:", username);
       isLoggedIn = true;
