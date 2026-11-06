@@ -32,12 +32,11 @@ service: ## Instal·la l'aplicació com a servei systemd (cal user=<usuari>)
 	@if [ -z "$(user)" ]; then \
 		echo "Error: has d'especificar user=<usuari>"; \
 		echo "Exemple: make install user=alumne"; \
-		echo "Exemple: sudo make service user=alumne --display :0"; \
 		exit 1; \
 	fi
 	@echo "Instal·lant servei systemd per a l'usuari '$(user)'..."
 	@chmod +x install-service-linux.sh
-	@sudo ./install-service-linux.sh --user $(user) $(if $(display),--display $(display))
+	@sudo ./install-service-linux.sh --user $(user)
 
 startup: ## Instal·la l'aplicació com a programa d'auto-inici
 	@echo "Instal·lant auto-inici..."

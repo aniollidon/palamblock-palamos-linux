@@ -3,11 +3,10 @@
 echo "Instal·lant palam-dash com a servei d'usuari systemd (obligatori --user)..."
 echo "Opcions:"
 echo "  --user <usuari>          (REQUERIT) Usuari existent que executarà el servei (unitat a ~/.config/systemd/user)"
-echo "  --display <:N>           Forçar DISPLAY (per defecte :1)"
 echo
-echo "Exemples:"
-echo "  sudo ./install-service-linux.sh --user alumne --display :0"
-echo "  sudo ./install-service-linux.sh --user alumne --display :0"
+echo "Exemple:"
+echo "  sudo ./install-service-linux.sh --user alumne"
+echo "(el display X es detecta automàticament en temps d'execució)"
 echo
 
 # Comprova si l'aplicació està compilada (busca l'AppImage)
@@ -17,6 +16,11 @@ if [ -z "$APPIMAGE_FILE" ]; then
     exit 1
 fi
 echo "AppImage trobada: $APPIMAGE_FILE"
+
+if [ ! -f "run.sh" ] || [ ! -f "scripts/lib-display.sh" ]; then
+    echo "Error: falten run.sh o scripts/lib-display.sh (executa l'script des de la carpeta palam-dash)"
+    exit 1
+fi
 
 # Comprova si estem executant com a root
 if [ "$EUID" -ne 0 ]; then
@@ -34,7 +38,6 @@ fi
 
 # Paràmetres
 SERVICE_RUN_USER=""        # Obligatori amb --user
-DISPLAY_VALUE=":1"         # DISPLAY per defecte
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -44,11 +47,6 @@ while [ $# -gt 0 ]; do
             shift
             if [ -z "${1:-}" ]; then echo "Error: falta valor per --user"; exit 1; fi
             SERVICE_RUN_USER="$1"
-            ;;
-        --display)
-            shift
-            if [ -z "${1:-}" ]; then echo "Error: falta valor per --display"; exit 1; fi
-            DISPLAY_VALUE="$1"
             ;;
         *)
             echo "Argument desconegut: $1"; exit 1;;
@@ -98,60 +96,10 @@ echo "Copia els scripts..."
 mkdir -p /data/palamos-dashboard/scripts
 cp -r scripts/* /data/palamos-dashboard/scripts/
 
-# Copia / crea run.sh i fixa DISPLAY
+# Copia run.sh (detecta el display X en temps d'execució)
 EXEC_START="/data/palamos-dashboard/run.sh"
-if [ -f "run.sh" ]; then
-    echo "Copiant run.sh i establint DISPLAY=$DISPLAY_VALUE..."
-    cp run.sh /data/palamos-dashboard/run.sh
-    # Intenta substituir línia DISPLAY_VAL; si no existeix, afegeix-la
-    if grep -q '^DISPLAY_VAL=' /data/palamos-dashboard/run.sh; then
-        sed -i "s|^DISPLAY_VAL=.*|DISPLAY_VAL=\"$DISPLAY_VALUE\"|" /data/palamos-dashboard/run.sh
-    else
-        echo "DISPLAY_VAL=\"$DISPLAY_VALUE\"" >> /data/palamos-dashboard/run.sh
-    fi
-    # Actualitzar ruta APP al run.sh copiat
-    sed -i "s|^APP=.*|APP=\"/data/palamos-dashboard/bin/palam-dash.AppImage\"|" /data/palamos-dashboard/run.sh
-else
-    echo "Generant run.sh (plantilla) amb DISPLAY=$DISPLAY_VALUE..."
-    cat > /data/palamos-dashboard/run.sh << RSEOF
-#!/bin/bash
-set -euo pipefail
-APP="/data/palamos-dashboard/bin/palam-dash.AppImage"
-DATA_DIR="/data/palamos-dashboard/data"
-DISPLAY_VAL="$DISPLAY_VALUE"
-WAIT_SECS=5
-
-log(){ echo "[run.sh] \$*"; }
-
-# Assegurar que les dades persistents (.user, .server) sobrevisquin a congelacions
-# Electron guarda a ~/.config/palam-dash/, fem symlink a /data/
-CONFIG_DIR="\$HOME/.config/palam-dash"
-mkdir -p "\$DATA_DIR"
-if [ ! -L "\$CONFIG_DIR" ] || [ "\$(readlink -f "\$CONFIG_DIR" 2>/dev/null)" != "\$DATA_DIR" ]; then
-  rm -rf "\$CONFIG_DIR"
-  mkdir -p "\$(dirname "\$CONFIG_DIR")"
-  ln -sf "\$DATA_DIR" "\$CONFIG_DIR"
-  log "Dades persistents: \$CONFIG_DIR -> \$DATA_DIR"
-fi
-
-export DISPLAY="\$DISPLAY_VAL"
-X_SOCKET="/tmp/.X11-unix/X\${DISPLAY_VAL#:}"
-if [ ! -S "\$X_SOCKET" ]; then
-  log "Socket X per \$DISPLAY_VAL no existeix. Esperant fins \${WAIT_SECS}s..."
-  for i in \$(seq 1 \$WAIT_SECS); do
-    if [ -S "\$X_SOCKET" ]; then
-      log "X disponible després de \${i}s"; break; fi
-    sleep 1
-  done
-fi
-if [ ! -S "\$X_SOCKET" ]; then
-  log "ATENCIÓ: No s'ha trobat el socket X a \$DISPLAY_VAL. L'aplicació pot fallar."
-fi
-
-log "Iniciant applicació: \$APP"
-exec "\$APP"
-RSEOF
-fi
+cp run.sh /data/palamos-dashboard/run.sh
+sed -i "s|^APP=.*|APP=\"/data/palamos-dashboard/bin/palam-dash.AppImage\"|" /data/palamos-dashboard/run.sh
 chmod +x /data/palamos-dashboard/run.sh
 
 
@@ -207,7 +155,6 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-Environment=DISPLAY=$DISPLAY_VALUE
 WorkingDirectory=/data/palamos-dashboard
 ExecStart=/data/palamos-dashboard/run.sh
 Restart=always

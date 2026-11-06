@@ -14,12 +14,44 @@ shift  # Eliminem el primer paràmetre perquè quedin només les IPs
 # Usuari super (root o l'usuari administrador)
 USUARI="super"
 
+REPO_URL="https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS"
+PALAM_DASH_URL="${REPO_URL%/setup-OS}/palam-dash"
+
 # Comandes a executar remotament
 COMANDES=$(cat <<'EOF'
 # Neteja de extensió PalamBlock a Brave
 rm -rf /home/alumne/.config/BraveSoftware/Brave-Browser/Default/Extensions/djdihbjaljagohkmfbjhacghcdplkhlh/
 # Afegim el servidor sevundari de PalamBlock al fitxer .server2
 echo https://palamblock.inspalamos.cat > /data/palamos-dashboard/data/.server2
+
+# Detecció automàtica del display X: palam-dash, scripts i x11vnc (sense display fixat)
+FALLA=0
+TMP=$(mktemp -d)
+mkdir -p /data/palamos-dashboard/scripts
+if wget -q __PALAM_DASH_URL__/run.sh -O $TMP/run.sh \
+    && wget -q __PALAM_DASH_URL__/scripts/lib-display.sh -O $TMP/lib-display.sh \
+    && wget -q __PALAM_DASH_URL__/scripts/pausa.sh -O $TMP/pausa.sh \
+    && wget -q __PALAM_DASH_URL__/scripts/repren.sh -O $TMP/repren.sh \
+    && wget -q __PALAM_DASH_URL__/scripts/missatge.sh -O $TMP/missatge.sh \
+    && wget -q __REPO_URL__/novnc/x11vnc-run.sh -O $TMP/x11vnc-run.sh \
+    && wget -q __REPO_URL__/novnc/x11vnc.service -O $TMP/x11vnc.service; then
+    install -o root -g root -m 755 $TMP/run.sh /data/palamos-dashboard/run.sh
+    install -o root -g root -m 755 $TMP/lib-display.sh $TMP/pausa.sh $TMP/repren.sh $TMP/missatge.sh /data/palamos-dashboard/scripts/
+    rm -f /data/palamos-dashboard/scripts/update.sh
+    # El servei d'usuari ja no fixa DISPLAY
+    sed -i '/^Environment=DISPLAY=/d' /home/alumne/.config/systemd/user/palamos-dashboard.service 2> /dev/null
+    install -o root -g root -m 755 $TMP/x11vnc-run.sh /usr/local/bin/palamos-x11vnc
+    if [ -f /etc/systemd/system/x11vnc.service ]; then
+        VNC_USER=$(sed -n 's/^User=//p' /etc/systemd/system/x11vnc.service)
+        sed "s|{{USER}}|$VNC_USER|g" $TMP/x11vnc.service > /etc/systemd/system/x11vnc.service
+        systemctl daemon-reload
+        systemctl try-restart x11vnc.service
+    fi
+else
+    echo "ERROR: no s'han pogut descarregar els fitxers de detecció de display"
+    FALLA=1
+fi
+rm -rf $TMP
 
 # Evitar que la màquina se suspengui
 systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
@@ -37,8 +69,11 @@ mkdir -p /etc/NetworkManager/conf.d /etc/NetworkManager/dnsmasq.d
 printf "[main]\ndns=dnsmasq\n" > /etc/NetworkManager/conf.d/00-dnsmasq.conf
 printf "address=/githubcopilot.com/0.0.0.0\naddress=/githubcopilot.com/::\naddress=/copilot-proxy.githubusercontent.com/0.0.0.0\naddress=/copilot-proxy.githubusercontent.com/::\naddress=/origin-tracker.githubusercontent.com/0.0.0.0\naddress=/origin-tracker.githubusercontent.com/::\naddress=/copilot-telemetry.githubusercontent.com/0.0.0.0\naddress=/copilot-telemetry.githubusercontent.com/::\n" > /etc/NetworkManager/dnsmasq.d/nocopilot.conf
 systemctl restart NetworkManager
+exit $FALLA
 EOF
 )
+COMANDES=${COMANDES//__PALAM_DASH_URL__/$PALAM_DASH_URL}
+COMANDES=${COMANDES//__REPO_URL__/$REPO_URL}
 # Codifiem les comandes en base64 per evitar problemes de cometes
 COMANDES_B64=$(printf '%s' "$COMANDES" | base64 -w0)
 
@@ -54,7 +89,6 @@ SSH_OPTS=(
     -o UserKnownHostsFile=/dev/null
     -o ConnectTimeout=10
 )
-REPO_URL="https://raw.githubusercontent.com/aniollidon/palamblock-palamos-linux/refs/heads/master/setup-OS"
 ESPERA_MAX=300  # segons màxims d'espera a que la màquina torni després d'un reinici
 
 # Executa un text de comandes com a root a la màquina $IP (via base64 per evitar problemes de cometes)

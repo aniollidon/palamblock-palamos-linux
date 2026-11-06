@@ -206,36 +206,9 @@ Aquests serveis permeten veure i controlar remotament la pantalla de l'alumne:
 - **x11vnc**: captura el display X11 de l'alumne i el serveix per VNC (port 5900)
 - **noVNC**: proxy WebSocket que tradueix VNC a HTML5 (port 6080)
 
-### Detectar el display X
+### Display X
 
-Abans d'instal·lar, l'usuari `alumne` ha d'haver iniciat sessió gràfica. El display X pot variar segons la configuració de GDM:
-
-- **Amb GDM + autologin** (plantilla examen): normalment el display és **`:0`**
-- **Amb GDM sense autologin** (plantilla FPB): normalment el display és **`:1`** (GDM ocupa `:0`)
-
-Per saber quin display X fa servir l'usuari `alumne`:
-
-```bash
-# Com a super
-w -h alumne
-# Exemple de sortida: alumne  tty2   :1    09:30   3:20  ...
-#                                         ^^
-# El display és el valor després de ttyX (:0, :1, etc.)
-```
-
-Si `w` no mostra el display (apareix un guió `-`), busca els sockets X11 actius:
-
-```bash
-ls /tmp/.X11-unix/
-# Mostrarà X0, X1, etc. El número correspon al display (:0, :1...).
-# Si només hi ha un socket, aquell és el display de l'usuari.
-```
-
-També pots comprovar-ho directament des de la sessió de l'alumne:
-
-```bash
-echo $DISPLAY
-```
+No cal indicar el display X: tant x11vnc com palam-dash el detecten automàticament en temps d'execució (qualsevol display, també si canvia entre reinicis). Només cal que `alumne` iniciï sessió gràfica.
 
 ### Executar l'instal·lador
 
@@ -252,7 +225,6 @@ Paràmetres disponibles:
 |---|---|---|
 | `--password PWD` | *(obligatori)* | Contrasenya per connectar-se via VNC |
 | `--user USER` | `alumne` | Usuari de la sessió X a capturar |
-| `--display :N` | autodetectar | Display X a capturar (ex: `:1`) |
 | `--novnc-user USER` | `super` | Usuari que executa el proxy noVNC |
 | `--novnc-dir DIR` | `$HOME/noVNC` | Directori on instal·lar noVNC |
 
@@ -261,18 +233,15 @@ Paràmetres disponibles:
 **Exemples:**
 
 ```bash
-# Instal·lació bàsica (autodetectar display)
+# Instal·lació bàsica
 sudo ./install-novnc-services.sh --password patata123
-
-# Especificar display manualment
-sudo ./install-novnc-services.sh --password patata123 --display :0
 ```
 
 ### Què fa l'script
 
 1. Instal·la `x11vnc` via `apt`
 2. Crea el fitxer de contrasenya `/etc/x11vnc.pwd`
-3. Crea i activa `x11vnc.service` (corre com a `alumne`, captura el display)
+3. Crea i activa `x11vnc.service` (corre com a `alumne`, captura el display detectat automàticament)
 4. Clona `noVNC` de GitHub a `~super/noVNC`
 5. Instal·la dependències `npm`
 6. Copia el fitxer `vnc_iframe.html` personalitzat (suporta `?view=true`)
@@ -297,7 +266,7 @@ echo "http://$(hostname -I | awk '{print $1}'):6080/vnc_iframe.html"
 git clone --depth 1 https://github.com/aniollidon/palamblock-palamos-linux.git /tmp/palamblock
 cd /tmp/palamblock/palam-dash 
 sudo apt install make 
-sudo make install user=alumne display=:0
+sudo make install user=alumne
 ```
 
 ## Scripts de neteja abans de congelar la plantilla Examen

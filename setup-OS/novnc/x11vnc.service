@@ -5,9 +5,9 @@ After=syslog.target network-online.target
 Wants=syslog.target network-online.target
 
 [Service]
-ExecStart=/usr/bin/x11vnc -auth /run/user/{{UID}}/gdm/Xauthority -forever -loop -noxdamage -repeat -display {{DISPLAY}} -rfbauth /etc/x11vnc.pwd -rfbport 5900 -shared -o /var/log/x11vnc.log
+ExecStart=/usr/local/bin/palamos-x11vnc
 ExecStop=/usr/bin/killall x11vnc
-Restart=on-failure
+Restart=always
 RestartSec=2
 User={{USER}}
 Group={{USER}}

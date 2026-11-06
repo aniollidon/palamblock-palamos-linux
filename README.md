@@ -77,10 +77,10 @@ npm run build
 ```bash
 git clone --depth 1 https://github.com/aniollidon/palamblock-palamos-linux.git /tmp/palamblock
 cd /tmp/palamblock/palam-dash
-sudo make install user=alumne display=:0
+sudo make install user=alumne
 ```
 
-Opcional: ajusta `--display :1` si uses un altre servidor X. De forma molt resumida: display=1, si hi ha login, display=0 si el login és automàtic
+El display X es detecta automàticament en temps d'execució (no cal indicar-lo).
 
 ### Logs
 

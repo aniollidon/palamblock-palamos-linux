@@ -3,15 +3,7 @@ set -euo pipefail
 
 APP="/data/palamos-dashboard/bin/palam-dash.AppImage"
 DATA_DIR="/data/palamos-dashboard/data"
-# Auto-detecció del display X de l'usuari
-DISPLAY_VAL=":0"
-for sock in /tmp/.X11-unix/X*; do
-    if [ -S "$sock" ] && [ -O "$sock" ]; then
-        DISPLAY_VAL=":${sock##*X}"
-        break
-    fi
-done
-WAIT_SECS=5
+WAIT_SECS=120
 
 log(){ echo "[run.sh] $*"; }
 
@@ -26,19 +18,14 @@ if [ ! -L "$CONFIG_DIR" ] || [ "$(readlink -f "$CONFIG_DIR" 2>/dev/null)" != "$D
   log "Dades persistents: $CONFIG_DIR -> $DATA_DIR"
 fi
 
-export DISPLAY=$DISPLAY_VAL
-X_SOCKET="/tmp/.X11-unix/X${DISPLAY_VAL#:}"
-if [ ! -S "$X_SOCKET" ]; then
-  log "Socket X per $DISPLAY_VAL no existeix. Esperant fins ${WAIT_SECS}s..."
-  for i in $(seq 1 $WAIT_SECS); do
-    if [ -S "$X_SOCKET" ]; then
-      log "X disponible després de ${i}s"; break; fi
-    sleep 1
-  done
+# El display X es detecta sempre en temps d'execució (qualsevol display, sense dependre de la instal·lació)
+source "$(dirname "$(readlink -f "$0")")/scripts/lib-display.sh"
+log "Esperant display X (màx. ${WAIT_SECS}s)..."
+if ! detect_display "$WAIT_SECS"; then
+  log "ERROR: no s'ha trobat cap display X. Sortim perquè systemd ho reintenti."
+  exit 1
 fi
-if [ ! -S "$X_SOCKET" ]; then
-  log "ATENCIÓ: No s'ha trobat el socket X a $DISPLAY_VAL. L'aplicació pot fallar."
-fi
+log "Display detectat: $DISPLAY (XAUTHORITY=${XAUTHORITY:-no definit})"
 
 log "Iniciant applicació: $APP"
 exec "$APP"

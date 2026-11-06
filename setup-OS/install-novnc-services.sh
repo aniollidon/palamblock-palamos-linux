@@ -19,7 +19,6 @@
 # OPCIONS:
 #   --password PWD       Contrasenya VNC (obligatori)
 #   --user USER          Usuari de la sessió X a capturar (default: alumne)
-#   --display :N         Display X a capturar (default: autodetectar o :1)
 #   --novnc-user USER    Usuari que executarà el proxy noVNC (default: qui
 #                        executa l'script, normalment super)
 #   --novnc-dir DIR      Directori on clonar/instal·lar noVNC
@@ -28,8 +27,7 @@
 #
 # EXEMPLES:
 #   sudo ./install-novnc-services.sh --password patata123
-#   sudo ./install-novnc-services.sh --password patata123 --display :1
-#   sudo ./install-novnc-services.sh --password patata123 --user alumne --display :1
+#   sudo ./install-novnc-services.sh --password patata123 --user alumne
 #
 # L'script l'ha d'executar l'usuari administrador (super) amb sudo.
 # =============================================================================
@@ -45,7 +43,6 @@ NOVNC_ASSETS="$SCRIPT_DIR/novnc"
 
 # Valors per defecte
 VNC_USER="alumne"
-DISPLAY_VAL=""                        # Buit = autodetectar
 NOVNC_USER="$(whoami)"               # Qui executa l'script (super)
 NOVNC_DIR=""                          # Buit = $HOME/noVNC del novnc-user
 VNC_PASSWORD=""
@@ -74,10 +71,6 @@ while [[ $# -gt 0 ]]; do
             ;;
         --user)
             VNC_USER="$2"
-            shift 2
-            ;;
-        --display)
-            DISPLAY_VAL="$2"
             shift 2
             ;;
         --novnc-user)
@@ -117,39 +110,8 @@ echo "============================================="
 echo ""
 
 # -----------------------------------------------------------------------------
-# 1. Detectar display X de l'usuari
+# 1. Usuari VNC (el display X es detecta en temps d'execució, veure x11vnc-run.sh)
 # -----------------------------------------------------------------------------
-
-if [ -z "$DISPLAY_VAL" ]; then
-    log_info "Auto-detectant el display X de l'usuari '$VNC_USER'..."
-
-    # Intentar amb w (funciona des de root)
-    if command -v w &>/dev/null; then
-        DISPLAY_VAL=$(w -h "$VNC_USER" 2>/dev/null | awk '{print $3}' | grep '^:' | head -1)
-    fi
-
-    # Si w no funciona, mirar els sockets X11
-    if [ -z "$DISPLAY_VAL" ] && [ -d /tmp/.X11-unix ]; then
-        DISPLAY_VAL=$(ls /tmp/.X11-unix/X* 2>/dev/null | sed 's|.*/X|:|' | sort -V | tail -1)
-    fi
-
-    if [ -z "$DISPLAY_VAL" ]; then
-        log_error "No s'ha pogut detectar cap display X11."
-        log_error ""
-        log_error "  Comprova-ho manualment des de l'usuari '$VNC_USER':"
-        log_error "    echo \$DISPLAY"
-        log_error "    w"
-        log_error ""
-        log_error "  Després torna a executar l'script amb:"
-        log_error "    sudo $0 --password PWD --display :1"
-        log_error ""
-        exit 1
-    fi
-
-    log_info "Display detectat: $DISPLAY_VAL"
-else
-    log_info "Display especificat manualment: $DISPLAY_VAL"
-fi
 
 # Obtenir UID de l'usuari VNC
 USER_UID=$(id -u "$VNC_USER" 2>/dev/null || true)
@@ -201,9 +163,11 @@ log_info "Contrasenya VNC desada."
 log_info "Instal·lant servei systemd x11vnc.service..."
 
 # Generar el fitxer de servei a partir de la plantilla
+install -m 755 "$NOVNC_ASSETS/x11vnc-run.sh" /usr/local/bin/palamos-x11vnc
+if [ ! -r /data/palamos-dashboard/scripts/lib-display.sh ]; then
+    log_warn "Falta /data/palamos-dashboard/scripts/lib-display.sh: x11vnc no arrencarà fins instal·lar palam-dash."
+fi
 sed -e "s|{{USER}}|$VNC_USER|g" \
-    -e "s|{{UID}}|$USER_UID|g" \
-    -e "s|{{DISPLAY}}|$DISPLAY_VAL|g" \
     "$NOVNC_ASSETS/x11vnc.service" > /etc/systemd/system/x11vnc.service
 
 chmod 644 /etc/systemd/system/x11vnc.service
@@ -332,7 +296,7 @@ echo "  Instal·lació completada!"
 echo "============================================="
 echo ""
 echo "  Serveis instal·lats:"
-echo "    - x11vnc.service      (VNC al port 5900, usuari: $VNC_USER, display: $DISPLAY_VAL)"
+echo "    - x11vnc.service      (VNC al port 5900, usuari: $VNC_USER, display autodetectat)"
 echo "    - novnc-proxy.service (WebSocket al port 6080, usuari: $NOVNC_USER)"
 echo ""
 echo "  Fitxers clau:"
