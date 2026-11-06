@@ -1,5 +1,4 @@
-
-
+# Scripts per arreglar errors de l'imatge de PalamOS
 
 ```
 ./repara_xarxa_graphics.sh <contrasenya_super> IP
